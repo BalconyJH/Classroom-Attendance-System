@@ -1,0 +1,15 @@
+[project]
+name = "Classroom-Attendance-System"
+version = "0.1.0"
+description = "a classroom attendance management system for colleges and universities constructed"
+authors = [
+    {name = "BalconyJH", email = "balconyjh@gmail.com"},
+]
+dependencies = [
+    "loguru>=0.7.2",
+    "pydantic[dotenv]==1.10.0",
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = {text = "GPL-3.0 license"}
+
