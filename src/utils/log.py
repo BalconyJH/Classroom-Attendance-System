@@ -1,32 +1,18 @@
-import logging
 import sys
+import logging
 from typing import TYPE_CHECKING
 
 import loguru
 
+from config import config
+
 if TYPE_CHECKING:
-    # avoid sphinx autodoc resolve annotation failed
-    # because loguru module do not have `Logger` class actually
-    from loguru import Logger, Record
+    from loguru import Logger
 
 logger: "Logger" = loguru.logger
-"""日志记录器对象。
-
-默认信息:
-
-- 格式: `[%(asctime)s %(name)s] %(levelname)s: %(message)s`
-- 等级: `INFO` ，根据 `config.py.log_level` 配置改变
-- 输出: 输出至 stdout
-
-用法:
-    ```python
-    from utils.log import logger
-    ```
-"""
 
 
-class LoguruHandler(logging.Handler):  # pragma: no cover
-    """logging 与 loguru 之间的桥梁，将 logging 的日志转发到 loguru。"""
+class LoguruHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         try:
@@ -44,29 +30,15 @@ class LoguruHandler(logging.Handler):  # pragma: no cover
         )
 
 
-def default_filter(record: "Record"):
-    """默认的日志过滤器，根据 `config.py.log_level` 配置改变日志等级。"""
-    log_level = record["extra"].get("log_level", "INFO")
-    levelno = logger.level(log_level).no if isinstance(log_level, str) else log_level
-    return record["level"].no >= levelno
-
-
-default_format: str = (
-    "<g>{time:MM-DD HH:mm:ss}</g> "
-    "[<lvl>{level}</lvl>] "
-    "<c><u>{name}</u></c> | "
-    # "<c>{function}:{line}</c>| "
-    "{message}"
+default_format = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    "<level>{level}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+    "<level>{message}</level>"
 )
-"""默认日志格式"""
-
 logger.remove()
 logger_id = logger.add(
     sys.stdout,
-    level=0,
-    diagnose=False,
-    filter=default_filter,
+    level=config.log_level,
     format=default_format,
 )
-"""默认日志处理器 id"""
-

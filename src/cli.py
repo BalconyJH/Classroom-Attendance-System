@@ -1,4 +1,6 @@
-from utils.log import logger
+import asyncio
 
-if __name__ == '__main__':
-    logger.info('hello world')
+from utils.camera import Camera
+
+if __name__ == "__main__":
+    asyncio.run(Camera(0).face_detector())
