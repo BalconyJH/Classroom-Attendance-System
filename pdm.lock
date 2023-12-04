@@ -5,7 +5,7 @@
 groups = ["default"]
 strategy = ["cross_platform"]
 lock_version = "4.4"
-content_hash = "sha256:fd0ca87b9a16f04f77237cb824377f09443b0024372b5cb52e7e6edd640c662f"
+content_hash = "sha256:9965c8c7593d7c157a058640c35e99a8397d6c8febf8ad99bf4f19895c126d34"
 
 [[package]]
 name = "annotated-types"
@@ -25,6 +25,14 @@ summary = "Cross-platform colored terminal text."
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
+]
+
+[[package]]
+name = "dlib"
+version = "19.24.2"
+summary = "A toolkit for making real world machine learning and data analysis applications"
+files = [
+    {file = "dlib-19.24.2.tar.gz", hash = "sha256:2d4f618073bc6b297aa01ce05595a2d32b5b37e69cafd99f796e77346f6dcfb5"},
 ]
 
 [[package]]

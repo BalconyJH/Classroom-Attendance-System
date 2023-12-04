@@ -10,6 +10,7 @@ dependencies = [
     "opencv-python>=4.8.1.78",
     "pydantic[dotenv]>=2.5.2",
     "pydantic-settings>=2.1.0",
+    "dlib>=19.24.2",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
