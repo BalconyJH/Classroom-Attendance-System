@@ -40,15 +40,31 @@ class Camera:
                 break
             # detect faces using haar cascade detector
             faces = face_classifier.detectMultiScale(img, 1.0485258, 6)
-
             for (x, y, w, h) in faces:
                 increment_num += 1
 
                 # saving the captured face in the <id> folder under static/images/dataset
                 # cv2.imwrite(f"{id_path}{os.sep}{increment_num}.jpg", img)
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                cv2.imshow("Capturing Face", img)
+            cv2.imshow("Capturing Face", img)
             if cv2.waitKey(1) & 0xFF == 27 or increment_num > 15:
                 break
         stream.release()
         cv2.destroyAllWindows()
+
+    @staticmethod
+    async def load_face_classifier():
+        pass
+
+    async def face_recognition(self):
+        logger.info("Face Recognition Start, press ESC to exit")
+        stream = cv2.VideoCapture(self.video_stream)
+
+        while True:
+            _, img = stream.read()
+            cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+            cv2.imshow("Face Recognition", img)
+            # todo: face recognition powered by dlib
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
