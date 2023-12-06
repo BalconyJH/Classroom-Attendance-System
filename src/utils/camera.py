@@ -1,11 +1,13 @@
-from pathlib import Path
+import os
 from typing import Union
 
 import cv2
 
-from utils.log import logger
+from .log import logger
 
-HAAR_CASCADE_PATH = Path(__file__).parent / "detectors" / "haarcascade_frontalface_alt2.xml"
+HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcascade_frontalface_alt2.xml")
+
+
 class Camera:
     def __init__(self, video_stream: Union[int, str]):
         self.video_stream = video_stream
