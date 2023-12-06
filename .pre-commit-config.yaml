@@ -24,4 +24,5 @@ repos:
     hooks:
       - id: prettier
         types_or: [javascript, jsx, ts, tsx, markdown, yaml, json]
+        exclude: ^environment\.yml$
         stages: [commit]
