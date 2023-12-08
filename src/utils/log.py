@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import loguru
 
-from config import config
+from src.config import config
 
 if TYPE_CHECKING:
     from loguru import Logger
@@ -42,3 +42,7 @@ logger_id = logger.add(
     level=config.log_level,
     format=default_format,
 )
+if config.log_level == "DEBUG":
+    sqlalchemy_logger = logging.getLogger("sqlalchemy.engine")
+    sqlalchemy_logger.addHandler(LoguruHandler())
+    sqlalchemy_logger.setLevel(config.log_level)

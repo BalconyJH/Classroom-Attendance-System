@@ -1,9 +1,10 @@
+from datetime import datetime
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, select
 
 from src.utils.log import logger
 
@@ -58,7 +59,8 @@ class BaseModel(Base):
         instance = cls(**kwargs)
         async with cls.auto_commit(db):
             db.add(instance)
-            await db.refresh(instance)
+            await db.commit()  # 确保首先提交事务
+            await db.refresh(instance)  # 提交后刷新实例
         return instance
 
     @classmethod
@@ -137,4 +139,49 @@ class BaseModel(Base):
         """
         async with self.auto_commit(db):
             await db.delete(self)
+
+
+class User(BaseModel):
+    """用户模型。"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=False, unique=True)
+    password = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    # attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    async def find_user(cls, session: AsyncSession, **kwargs):
+        """
+        根据给定的筛选条件查询一个用户。
+        :param session:  AsyncSession 实例，代表当前数据库会话。
+        :param kwargs:  筛选条件。
+        :return:  符合筛选条件的用户。
+
+        用法:
+            ```python
+            user = await UserModel.find_user(session, email="111@gmail.com")
+            ```
+        """
+        return await cls.read_all(session, **kwargs)
+
+    @classmethod
+    async def create_admin(cls, session: AsyncSession, **kwargs):
+        """
+        创建并添加一个新管理员到数据库。
+        :param session: AsyncSession 实例，代表当前数据库会话。
+        :param kwargs: 实例化模型所需的字段参数。
+        :return: 创建的管理员实例。
+        """
+        kwargs["is_admin"] = True
+        instance = cls(**kwargs)
+        async with cls.auto_commit(session):
+            session.add(instance)
+            await session.refresh(instance)
+        return instance
 
