@@ -4,8 +4,12 @@
   "DATABASE": {
     "LOGIN": {
       "SUCCESS": "登录成功",
-      "FAIL": "登录失败"
+      "FAILED": "登录失败"
     }
+  },
+  "MODEL": {
+    "MODEL_LOAD_SUCCESS": "模型加载成功",
+    "MODEL_LOAD_FAILED": "模型加载失败"
   },
   "ERRORS": {
     "UNKNOWN": "未知错误",
@@ -19,6 +23,22 @@
     "ACCESS_DENIED": "访问被拒绝",
     "UNSUPPORTED_RESPONSE_TYPE": "不支持的响应类型",
     "SERVER_ERROR": "服务器错误",
-    "TEMPORARILY_UNAVAILABLE": "暂时不可用"
+    "TEMPORARILY_UNAVAILABLE": "暂时不可用",
+    "DATABASE": {
+      "CONNECTION": {
+        "FAILED": "数据库连接失败",
+        "SUCCESS": "数据库连接成功"
+      }
+    },
+    "FILE": {
+      "UPLOAD": {
+        "FAILED": "文件上传失败",
+        "SUCCESS": "文件上传成功"
+      },
+      "STATUS": {
+        "NOT_FOUND": "文件不存在",
+        "NOT_ALLOWED": "文件不允许访问"
+      }
+    }
   }
 }
