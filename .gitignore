@@ -157,3 +157,8 @@ cython_debug/
 # ides
 .idea/
 .vscode/
+
+# project
+data.sqlite3
+src/resources/models
+*.pkl
