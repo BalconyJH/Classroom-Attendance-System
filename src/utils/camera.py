@@ -3,7 +3,8 @@ from typing import Union
 
 import cv2
 
-from .log import logger
+from src.utils import logger
+from src.config import config
 
 HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcascade_frontalface_alt2.xml")
 
@@ -31,26 +32,48 @@ class Camera:
         stream.release()
         cv2.destroyAllWindows()
 
-    async def face_detector(self):
+    async def face_gather(self, uid):
         stream = cv2.VideoCapture(self.video_stream)
         face_classifier = cv2.CascadeClassifier(str(HAAR_CASCADE_PATH))
         increment_num = 0
+        dataset_num: int = 15
+
+        path = f"{config.cache_path}/dataset/images/{uid}"
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         while True:
             ret, img = stream.read()
             if not ret:
                 break
+
+            img = cv2.resize(
+                img,
+                (int(img.shape[1] * 0.5), int(img.shape[0] * 0.5)),
+                interpolation=cv2.INTER_AREA)
+
             # detect faces using haar cascade detector
             faces = face_classifier.detectMultiScale(img, 1.0485258, 6)
             for (x, y, w, h) in faces:
                 increment_num += 1
 
-                # saving the captured face in the <id> folder under static/images/dataset
-                # cv2.imwrite(f"{id_path}{os.sep}{increment_num}.jpg", img)
-                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                # 保存裁剪的脸部图像
+                cv2.imwrite(f"{path}/{increment_num}.jpg", img)
+
+                # 在原始图像上画框
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                # 更新进度条
+                progress = (increment_num / dataset_num) * 100
+                progress_bar = (f"Progress:"
+                                f" [{'#' * int(progress / 10)}{'.' * (10 - int(progress / 10))}]"
+                                f" {int(progress)}%")
+                logger.info(progress_bar, end="\r")
             cv2.imshow("Capturing Face", img)
-            if cv2.waitKey(1) & 0xFF == 27 or increment_num > 15:
+            if cv2.waitKey(1) & 0xFF == 27 or increment_num == dataset_num:
                 break
+            # if cv2.waitKey(1) & 0xFF == 27:
+            #     break
         stream.release()
         cv2.destroyAllWindows()
 

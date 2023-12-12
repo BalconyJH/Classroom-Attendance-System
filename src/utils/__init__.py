@@ -39,10 +39,10 @@ def return_euclidean_distance(feature_1: list[float], feature_2: list[float]) ->
 
     :return: 如果两个特征向量的欧氏距离小于或等于0.4，则返回 True，表示它们相似， 则返回 False，表示它们不相似。
     """
-    feature_1 = np.array(feature_1)
-    feature_2 = np.array(feature_2)
-    dist = np.sqrt(np.sum(np.square(feature_1 - feature_2)))
-    print("欧式距离: ", dist)
+    feature_1_np = np.array(feature_1)
+    feature_2_np = np.array(feature_2)
+    dist = np.sqrt(np.sum(np.square(feature_1_np - feature_2_np)))
+    logger.debug(f"欧式距离: {dist}")
 
     if dist > 0.4:
         return False
