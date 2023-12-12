@@ -1,3 +1,5 @@
+import os
+import pickle
 
 import cv2
 import dlib
@@ -49,12 +51,19 @@ class FaceClassifier:
             cv2.imwrite(image_path, face_chip)
 
     @staticmethod
-    async def face_svm(face_descriptors):
-        OneClassSVM(gamma="auto").fit(face_descriptors)
+    async def train_face_classifier(face_descriptors: list[list[float]]) -> OneClassSVM | None:
+        if len(face_descriptors) == 0:
+            logger.warning("MODEL.TRAIN.PARAMETERS_MISSING")
+            return None
+        logger.debug(f"face_descriptors_length: {len(face_descriptors)}")
+        logger.debug(f"sample_width: {len(face_descriptors[0])}")
+        model = OneClassSVM(gamma="auto")
+        model.fit(face_descriptors)
+
+        return model
 
     @staticmethod
-    async def save_face_classifier():
-        pass
-
-    async def train_face_classifier(self):
-        pass
+    async def save_face_classifier(data: list[float] | OneClassSVM, uid: str, path: str):
+        file_path = os.path.join(path, f"{uid}.pkl")
+        with open(file_path, "wb") as f:
+            pickle.dump(data, f)
