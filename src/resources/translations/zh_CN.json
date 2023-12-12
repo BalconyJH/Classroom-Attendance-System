@@ -8,8 +8,15 @@
     }
   },
   "MODEL": {
-    "MODEL_LOAD_SUCCESS": "模型加载成功",
-    "MODEL_LOAD_FAILED": "模型加载失败"
+    "LOAD": {
+      "SUCCESS": "模型加载成功",
+      "FAILED": "模型加载失败"
+    },
+    "TRAIN": {
+      "PARAMETERS_MISSING": "参数缺失",
+      "SUCCESS": "模型训练成功",
+      "FAILED": "模型训练失败"
+    }
   },
   "ERRORS": {
     "UNKNOWN": "未知错误",
