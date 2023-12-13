@@ -1,10 +1,11 @@
 from datetime import datetime
 from contextlib import asynccontextmanager
 
+from sqlalchemy.orm import relationship
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, LargeBinary, select
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, LargeBinary, select
 
 from src.utils import logger
 
@@ -151,7 +152,9 @@ class User(BaseModel):
     password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, default=False)
     predictor_model = Column(LargeBinary)
-    # attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan")
+    attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan")
+    # class_id = Column(Integer, ForeignKey('classes.id'))
+    # classes = relationship("Class", back_populates="students", foreign_keys=[class_id])
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -185,3 +188,27 @@ class User(BaseModel):
             await session.refresh(instance)
         return instance
 
+
+class Attendance(BaseModel):
+    """考勤模型。"""
+    __tablename__ = "attendances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user = relationship("User", back_populates="attendances")
+    date = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# class Class(BaseModel):
+#     """班级模型。"""
+#     __tablename__ = "classes"
+#
+#     id = Column(Integer, primary_key=True, index=True)
+#     name = Column(String(255), nullable=False)
+#     teacher_id = Column(Integer, ForeignKey('users.id'))
+#     teacher = relationship("User", backref="teaching_classes")
+#     students = relationship("User", back_populates="class")
+#     created_at = Column(DateTime, default=datetime.utcnow)
+#     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
