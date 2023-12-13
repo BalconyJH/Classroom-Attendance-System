@@ -174,6 +174,23 @@ class User(BaseModel):
         return await cls.read_all(session, **kwargs)
 
     @classmethod
+    async def create_user(cls, session: AsyncSession, **kwargs):
+        """
+        创建并添加一个新用户到数据库。
+        :param session: AsyncSession 实例，代表当前数据库会话。
+        :param kwargs: 实例化模型所需的字段参数。
+        :return: 创建的用户实例。
+        """
+        instance = cls(**kwargs)
+        initial_attendance = Attendance(user_id=instance.id)  # 创建 Attendance 实例
+        async with cls.auto_commit(session):
+            session.add(instance)  # 添加用户
+            await session.commit()  # 提交以获取用户ID
+            await session.refresh(instance)  # 刷新实例以获取新的ID
+            session.add(initial_attendance)  # 添加考勤记录
+        return instance
+
+    @classmethod
     async def create_admin(cls, session: AsyncSession, **kwargs):
         """
         创建并添加一个新管理员到数据库。
@@ -182,11 +199,7 @@ class User(BaseModel):
         :return: 创建的管理员实例。
         """
         kwargs["is_admin"] = True
-        instance = cls(**kwargs)
-        async with cls.auto_commit(session):
-            session.add(instance)
-            await session.refresh(instance)
-        return instance
+        return await cls.create_user(session, **kwargs)
 
 
 class Attendance(BaseModel):
@@ -199,7 +212,6 @@ class Attendance(BaseModel):
     date = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
 
 # class Class(BaseModel):
 #     """班级模型。"""
