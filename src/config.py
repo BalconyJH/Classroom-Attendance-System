@@ -1,10 +1,12 @@
 from pathlib import Path
 
+import pytz
 from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
     log_level: str = "INFO"
+    timezone = pytz.timezone("Asia/Shanghai")
     database_url: str = "sqlite+aiosqlite:///resources/data/data.sqlite3"
     cache_path: Path = Path(__file__).parent / "resources" / "caches"
     static_path: Path = Path(__file__).parent / "resources" / "statics"

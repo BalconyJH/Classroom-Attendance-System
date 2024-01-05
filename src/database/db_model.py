@@ -9,6 +9,8 @@ from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, L
 
 from src.utils import logger
 
+from ..config import config
+
 Base = declarative_base()
 
 
@@ -155,8 +157,11 @@ class User(BaseModel):
     attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan")
     # class_id = Column(Integer, ForeignKey('classes.id'))
     # classes = relationship("Class", back_populates="students", foreign_keys=[class_id])
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(config.timezone))
+    updated_at = Column(DateTime,
+                        default=lambda: datetime.now(config.timezone),
+                        onupdate=lambda: datetime.now(config.timezone)
+                        )
 
     @classmethod
     async def find_user(cls, session: AsyncSession, **kwargs):
@@ -202,16 +207,18 @@ class User(BaseModel):
         return await cls.create_user(session, **kwargs)
 
 
-class Attendance(BaseModel):
+class Attendance(Base):
     """考勤模型。"""
     __tablename__ = "attendances"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     user = relationship("User", back_populates="attendances")
-    date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(config.timezone))
+    updated_at = Column(DateTime,
+                        default=lambda: datetime.now(config.timezone),
+                        onupdate=lambda: datetime.now(config.timezone)
+                        )
 
 # class Class(BaseModel):
 #     """班级模型。"""
