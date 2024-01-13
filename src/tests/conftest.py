@@ -1,14 +1,22 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from utils import logger
 from src.database.db_model import Base
 
 
 @pytest.fixture
 async def async_engine():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=True)
+    """
+    创建一个内存中的 sqlite 数据库引擎。
+    引擎会在测试结束后自动销毁。
+    引擎启动时会自动创建所有模型对应的表。
+    :return: AsyncEngine 实例。
+    """
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        logger.info("Create all tables")
     yield engine
     await engine.dispose()
 
