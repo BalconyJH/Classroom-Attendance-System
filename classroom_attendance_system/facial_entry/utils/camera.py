@@ -2,8 +2,8 @@ import os
 from typing import Union
 
 import cv2
+from facial_entry.utils import logger
 
-from src.utils import logger
 from src.config import config
 
 HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcascade_frontalface_alt2.xml")
@@ -17,8 +17,9 @@ class Camera:
         stream = cv2.VideoCapture(self.video_stream)
         logger.debug(f"Stream Fps: {round(stream.get(cv2.CAP_PROP_FPS), 2)}")
         logger.debug(f"Stream Backend: {stream.getBackendName()}")
-        logger.debug(f"Stream Size(W*H): {stream.get(cv2.CAP_PROP_FRAME_WIDTH)}*"
-                     f"{stream.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
+        logger.debug(
+            f"Stream Size(W*H): {stream.get(cv2.CAP_PROP_FRAME_WIDTH)}*" f"{stream.get(cv2.CAP_PROP_FRAME_HEIGHT)}"
+        )
         logger.info("Camera Check Start, press ESC to exit")
         while stream.isOpened():
             ret, frame = stream.read()
@@ -47,14 +48,11 @@ class Camera:
             if not ret:
                 break
 
-            img = cv2.resize(
-                img,
-                (int(img.shape[1] * 0.5), int(img.shape[0] * 0.5)),
-                interpolation=cv2.INTER_AREA)
+            img = cv2.resize(img, (int(img.shape[1] * 0.5), int(img.shape[0] * 0.5)), interpolation=cv2.INTER_AREA)
 
             # detect faces using haar cascade detector
             faces = face_classifier.detectMultiScale(img, 1.0485258, 6)
-            for (x, y, w, h) in faces:
+            for x, y, w, h in faces:
                 increment_num += 1
 
                 # 保存裁剪的脸部图像
@@ -65,9 +63,9 @@ class Camera:
 
                 # 更新进度条
                 progress = (increment_num / dataset_num) * 100
-                progress_bar = (f"Progress:"
-                                f" [{'#' * int(progress / 10)}{'.' * (10 - int(progress / 10))}]"
-                                f" {int(progress)}%")
+                progress_bar = (
+                    f"Progress:" f" [{'#' * int(progress / 10)}{'.' * (10 - int(progress / 10))}]" f" {int(progress)}%"
+                )
                 logger.info(progress_bar, end="\r")
             cv2.imshow("Capturing Face", img)
             if cv2.waitKey(1) & 0xFF == 27 or increment_num == dataset_num:

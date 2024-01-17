@@ -2,9 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
-
-from src.config import config
-from src.utils import (
+from facial_entry.utils import (
     init,
     database_init,
     message_translator,
@@ -12,6 +10,8 @@ from src.utils import (
     init_shape_predictor_model_file,
     init_face_recognition_model_file,
 )
+
+from src.config import config
 
 
 @patch("src.utils.database_init")
@@ -36,7 +36,7 @@ async def test_init_with_database_initialization_failure():
 
 @patch("src.utils.unzip_static", side_effect=lambda x, y: True)
 def test_unzip_static_with_valid_path(mock_unzip_static):
-    from src.utils import unzip_static
+    from facial_entry.utils import unzip_static
 
     assert unzip_static("valid_path", "valid_path") is True
     mock_unzip_static.assert_called_once_with("valid_path", "valid_path")
@@ -44,7 +44,7 @@ def test_unzip_static_with_valid_path(mock_unzip_static):
 
 @patch("src.utils.unzip_static", return_value=False)
 def test_unzip_static_with_invalid_path(mock_unzip_static):
-    from src.utils import unzip_static
+    from facial_entry.utils import unzip_static
 
     assert unzip_static("invalid_path", "invalid_path") is False
     mock_unzip_static.assert_called_once_with("invalid_path", "invalid_path")

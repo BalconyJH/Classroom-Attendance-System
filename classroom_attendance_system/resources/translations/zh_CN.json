@@ -35,6 +35,10 @@
       "CONNECTION": {
         "FAILED": "数据库连接失败",
         "SUCCESS": "数据库连接成功"
+      },
+      "INIT": {
+        "FAILED": "数据库初始化失败",
+        "SUCCESS": "数据库初始化成功"
       }
     },
     "FILE": {

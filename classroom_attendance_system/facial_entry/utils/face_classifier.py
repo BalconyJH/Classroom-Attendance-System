@@ -1,20 +1,19 @@
 import os
 import pickle
+from typing import Union
 
 import cv2
 import dlib
 from sklearn.svm import OneClassSVM
+from facial_entry.utils import logger, message_translator
 
 from src.config import config
-from src.utils import logger, message_translator
 
 
 class FaceClassifier:
     def __init__(self):
         self.face_detector = dlib.get_frontal_face_detector()
-        self.shape_predictor = dlib.shape_predictor(
-            f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat"
-        )
+        self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
         self.face_recognition_model = dlib.face_recognition_model_v1(
             f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
         )
@@ -32,7 +31,7 @@ class FaceClassifier:
             shape = self.shape_predictor(rgb_image, face_rect)
             face_descriptor = self.face_recognition_model.compute_face_descriptor(rgb_image, shape)
             face_descriptors.append(face_descriptor)
-        return face_descriptors[0]
+        return face_descriptors
 
     def preprocess_face(self, image_path):
         img = cv2.imread(image_path)
@@ -43,6 +42,7 @@ class FaceClassifier:
             return None
         if len(faces) > 1:
             logger.warning("More than one face detected.")
+            return None
 
         for face in faces:
             shape = self.shape_predictor(img, face)
@@ -63,7 +63,7 @@ class FaceClassifier:
         return model
 
     @staticmethod
-    async def save_face_classifier(data: list[float] | OneClassSVM, uid: str, path: str):
+    async def save_face_classifier(data: Union[list[float], OneClassSVM], uid: str, path: str):
         file_path = os.path.join(path, f"{uid}.pkl")
         with open(file_path, "wb") as f:
             pickle.dump(data, f)

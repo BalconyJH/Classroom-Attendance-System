@@ -11,6 +11,7 @@ dependencies = [
     "pydantic[dotenv]>=2.5.2",
     "pydantic-settings>=2.1.0",
     "dlib>=19.24.2",
+    "Django>=4.2.9",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
@@ -26,7 +27,7 @@ extra_standard_library = ["typing_extensions"]
 
 [tool.ruff]
 select = ["E", "W", "F", "UP", "C", "T", "PYI", "PT", "Q"]
-ignore = ["E402", "C901", "UP037", "T201"]
+ignore = ["E402", "C901", "UP037", "T201", "F403"]
 line-length = 120
 
 [tool.ruff.flake8-pytest-style]
@@ -43,7 +44,15 @@ executionEnvironments = [
     { root = "./" },
 ]
 
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "mysite.settings"
+
 typeCheckingMode = "basic"
 reportShadowedImports = false
 disableBytesTypePromotions = true
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

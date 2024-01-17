@@ -1,9 +1,11 @@
 import json
+import logging
 from pathlib import Path
 
-from src.config import config
+from config import config
 
 TRANSLATIONS_PATH = Path(f"{config.translation_path}/{config.language_type}.json")
+logger = logging.getLogger(__name__)
 
 
 class Translator:
@@ -12,7 +14,6 @@ class Translator:
     """
 
     def __init__(self):
-        from src.utils import logger
         """
         加载指定语言的翻译文件并初始化翻译器。
         """
@@ -52,3 +53,6 @@ class Translator:
         获取多个消息键的翻译文本。
         """
         return {key: self.get_local_translation(key) for key in message_keys}
+
+
+message_translator = Translator().get_local_translation
