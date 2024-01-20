@@ -1,15 +1,20 @@
+from datetime import datetime
 from logging.config import dictConfig
-from datetime import datetime, timedelta
 
 import dlib
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, flash, request, session, url_for, redirect, render_template
 
+from config import config
+
+config_dict = config.dict()
+
 app = Flask(__name__)
-app.config.from_object("config")
-app.secret_key = "123456"
-app.jinja_env.auto_reload = True
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(seconds=1)
+app.config.update(
+    SECRET_KEY=config_dict.secret_key.get_secret_value(),
+    SQLALCHEMY_DATABASE_URI=config_dict.sqlalchemy_database_uri.get_secret_value(),
+    SQLALCHEMY_TRACK_MODIFICATIONS=config_dict.sqlalchemy_track_modifications
+)
 db = SQLAlchemy(app)
 from .models import Student, Teacher  # noqa E402
 
