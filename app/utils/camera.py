@@ -2,9 +2,9 @@ import os
 from typing import Union
 
 import cv2
-from facial_entry.utils import logger
-
 from src.config import config
+
+from app.utils import logger
 
 HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcascade_frontalface_alt2.xml")
 

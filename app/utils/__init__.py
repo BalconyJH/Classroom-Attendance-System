@@ -67,7 +67,6 @@ async def database_init():
 async def init_shape_predictor_model_file():
     """初始化人脸关键点检测模型文件"""
     import dlib
-
     from src.config import config
 
     try:
@@ -86,7 +85,6 @@ async def init_shape_predictor_model_file():
 async def init_face_recognition_model_file():
     """初始化人脸识别模型文件"""
     import dlib
-
     from src.config import config
 
     try:

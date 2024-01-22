@@ -1,7 +1,6 @@
 from datetime import datetime
 from logging.config import dictConfig
 
-import dlib
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, flash, request, session, url_for, redirect, render_template
 
@@ -11,11 +10,14 @@ config_dict = config.dict()
 
 app = Flask(__name__)
 app.config.update(
-    SECRET_KEY=config_dict.secret_key.get_secret_value(),
-    SQLALCHEMY_DATABASE_URI=config_dict.sqlalchemy_database_uri.get_secret_value(),
-    SQLALCHEMY_TRACK_MODIFICATIONS=config_dict.sqlalchemy_track_modifications
+    SECRET_KEY=config_dict["secret_key"].get_secret_value(),
+    SQLALCHEMY_DATABASE_URI=config_dict["sqlalchemy_database_uri"].get_secret_value(),
+    SQLALCHEMY_TRACK_MODIFICATIONS=config_dict["sqlalchemy_track_modifications"],
 )
 db = SQLAlchemy(app)
+logger = app.logger
+from app import views, models  # noqa E402
+
 from .models import Student, Teacher  # noqa E402
 
 # handler = logging.StreamHandler()
@@ -27,22 +29,24 @@ from .models import Student, Teacher  # noqa E402
 # if app.logger.hasHandlers():
 #     app.logger.handlers.clear()
 # app.logger.addHandler(handler)
-print(f"CUDA STATUS:{dlib.DLIB_USE_CUDA}")
-dictConfig({
-    "version": 1,
-    "formatters": {"default": {
-        "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
-    }},
-    "handlers": {"wsgi": {
-        "class": "logging.StreamHandler",
-        "stream": "ext://flask.logging.wsgi_errors_stream",
-        "formatter": "default"
-    }},
-    "root": {
-        "level": "INFO",
-        "handlers": ["wsgi"]
+dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
+            }
+        },
+        "handlers": {
+            "wsgi": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://flask.logging.wsgi_errors_stream",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["wsgi"]},
     }
-})
+)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -139,3 +143,8 @@ def before():
         else:
             flash("未登录")
             return redirect("/")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return redirect(url_for("static", filename="favicon.ico"))

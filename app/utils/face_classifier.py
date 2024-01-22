@@ -4,10 +4,10 @@ from typing import Union
 
 import cv2
 import dlib
-from sklearn.svm import OneClassSVM
-from facial_entry.utils import logger, message_translator
-
 from src.config import config
+from sklearn.svm import OneClassSVM
+
+from app.utils import logger, message_translator
 
 
 class FaceClassifier:

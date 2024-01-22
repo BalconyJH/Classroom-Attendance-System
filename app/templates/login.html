@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 
-<title>刷脸签到系统</title>
+<title>生物识别签到系统</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
 <link rel="stylesheet" type="text/css" href="../static/css/4.css" />
@@ -16,7 +16,7 @@
 	<div class="container container_1170">
 		<div class="row sl_log_top">
 			<div class="col-sm-8 logo_1"><img src="../static/picture/1.png" style="margin-top:-3px" />
-				<span id="xtmc">刷脸签到系统</span>
+				<span id="xtmc">生物识别签到系统</span>
 			</div>
 			<div class="col-sm-4 text-right hidden-xs">
 
@@ -40,9 +40,13 @@
 									<h5>用户登录</h5>
 
 								<!-- 防止浏览器自动填充密码 -->
-								<input type="text" style="display: none;" autocomplete="off"/>
-								<input type="password" style="display: none;" autocomplete="off"/>
-								<!-- 防止浏览器自动填充密码 end -->
+                                <label>
+                                    <input type="text" style="display: none;" autocomplete="off"/>
+                                </label>
+                                <label>
+                                    <input type="password" style="display: none;" autocomplete="off"/>
+                                </label>
+                                <!-- 防止浏览器自动填充密码 end -->
 
 
 									<p style="display: none;" id="tips" class="bg_danger sl_danger">
@@ -65,10 +69,6 @@
 								<div class="form-group">
 									<button type="submit" class="btn btn-primary btn-block" id="dl">登 录</button>
 								</div>
-{#                                <div class = "form-group">#}
-{#									<a href="" id="authJwglxtLoginURL" class="checkbox pull-right">点击注册</a>#}
-{#								</div>#}
-{#                                #}
 								<div class="form-group">
                                     {% for message in get_flashed_messages() %}
                                        <div class="flash alert alert-danger" role="alert" id="dlktsxx">{{ message }}</div>

@@ -4,6 +4,8 @@ import cv2
 import dlib
 import numpy as np
 
+from . import logger
+
 # Dlib 正向人脸检测器
 detector = dlib.get_frontal_face_detector()
 
@@ -11,6 +13,26 @@ detector = dlib.get_frontal_face_detector()
 class Face_Register:
     def __init__(self):
         pass
+
+    async def check_camera(self):
+        stream = cv2.VideoCapture(self.video_stream)
+        logger.debug(f"Stream Fps: {round(stream.get(cv2.CAP_PROP_FPS), 2)}")
+        logger.debug(f"Stream Backend: {stream.getBackendName()}")
+        logger.debug(
+            f"Stream Size(W*H): {stream.get(cv2.CAP_PROP_FRAME_WIDTH)}*" f"{stream.get(cv2.CAP_PROP_FRAME_HEIGHT)}"
+        )
+        logger.info("Camera Check Start, press ESC to exit")
+        while stream.isOpened():
+            ret, frame = stream.read()
+            if not ret:
+                logger.error("Camera is not working")
+                break
+            cv2.imshow("Camera Checking", frame)
+
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
+        stream.release()
+        cv2.destroyAllWindows()
 
     # 将录入的图片进行人脸检测，分截取人脸部分
     def process(self, path):

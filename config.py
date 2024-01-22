@@ -19,13 +19,12 @@ class Config(BaseSettings):
     send_file_max_age_default: timedelta = timedelta(seconds=1)
 
     # SQLAlchemy settings
-    sqlalchemy_database_uri: SecretStr = (
-        "mysql+pymysql://root:070499@localhost:3306/test?charset=utf8"
-    )
+    sqlalchemy_database_uri: SecretStr = "mysql+pymysql://root:070499@localhost:3306/test?charset=utf8"
     sqlalchemy_track_modifications: bool = True
 
     class Config:
         env_file = ".env"
+        extra = "allow"
 
 
 config = Config()

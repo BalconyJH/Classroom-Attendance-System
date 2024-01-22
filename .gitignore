@@ -160,6 +160,7 @@ cython_debug/
 
 # project
 data.sqlite3
-src/resources/models
-src/resources/caches
+resources/models
+resources/caches
 *.pkl
+/.env

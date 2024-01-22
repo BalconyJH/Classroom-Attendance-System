@@ -107,11 +107,11 @@ li {
 }
 
 .margin-t0 {
-	margin-top: 0px !important;
+	margin-top: 0 !important;
 }
 
 .margin-b0 {
-	margin-bottom: 0px !important;
+	margin-bottom: 0 !important;
 }
 
 .margin-t10 {
@@ -128,7 +128,7 @@ li {
 }
 
 .margin-r10 {
-	margin: 0px 10px 0px 0px !important
+	margin: 0 10px 0px 0px !important
 }
 
 .margin-10 {
@@ -3356,6 +3356,7 @@ h4.title {
 
 .sl_log_lf .img-responsive {
 	width: auto;
+	height: auto;
 }
 
 .sl_log_rt {

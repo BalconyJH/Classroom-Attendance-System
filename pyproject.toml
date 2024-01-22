@@ -1,21 +1,28 @@
 [project]
 name = "Classroom-Attendance-System"
 version = "0.1.0"
-description = "a classroom attendance management system for colleges and universities constructed"
+description = "Default template for PDM package"
 authors = [
     {name = "BalconyJH", email = "balconyjh@gmail.com"},
 ]
 dependencies = [
-    "loguru>=0.7.2",
-    "opencv-python>=4.8.1.78",
-    "pydantic[dotenv]>=2.5.2",
-    "pydantic-settings>=2.1.0",
     "dlib>=19.24.2",
-    "Django>=4.2.9",
+    "numpy>=1.26.3",
+    "opencv-python>=4.9.0.80",
+    "scikit-image>=0.22.0",
+    "Flask>=3.0.0",
+    "Flask-SQLAlchemy>=3.1.1",
+    "pandas>=2.1.4",
+    "pymysql>=1.1.0",
+    "sentry-sdk[flask]>=1.39.2",
+    "setuptools>=69.0.3",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "cryptography>=41.0.7",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
-license = {text = "GPL-3.0 license"}
+license = { text = "GPL-3.0 license" }
 
 [tool.isort]
 profile = "black"
@@ -44,15 +51,10 @@ executionEnvironments = [
     { root = "./" },
 ]
 
-[tool.mypy]
-plugins = ["mypy_django_plugin.main"]
-
-[tool.django-stubs]
-django_settings_module = "mysite.settings"
-
 typeCheckingMode = "basic"
 reportShadowedImports = false
 disableBytesTypePromotions = true
+distribution = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

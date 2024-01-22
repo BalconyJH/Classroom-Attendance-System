@@ -42,14 +42,10 @@ def home():
 # Dlib 正向人脸检测器
 detector = dlib.get_frontal_face_detector()
 # Dlib 人脸 landmark 特征点检测器
-predictor = dlib.shape_predictor(
-    "app/static/data_dlib/shape_predictor_68_face_landmarks.dat"
-)
+predictor = dlib.shape_predictor("app/static/data_dlib/shape_predictor_68_face_landmarks.dat")
 
 # Dlib Resnet 人脸识别模型，提取 128D 的特征矢量
-face_reco_model = dlib.face_recognition_model_v1(
-    "app/static/data_dlib/dlib_face_recognition_resnet_model_v1.dat"
-)
+face_reco_model = dlib.face_recognition_model_v1("app/static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
 
 
 class VideoCamera:
@@ -122,9 +118,6 @@ class VideoCamera:
             # print("Faces in Database：", len(self.features_known_list))
             return 1
         else:
-            # print('##### Warning #####', '\n')
-            # print("'features' is empty")
-            # print('##### End Warning #####')
             return 0
 
         # 更新 FPS / Update FPS of video stream
@@ -193,6 +186,9 @@ class VideoCamera:
                 self.frame_cnt += 1
                 # print(">>> Frame " + str(self.frame_cnt) + " starts")
                 flag, img_rd = stream.read()
+                img_rd = cv2.resize(
+                    img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
+                )
 
                 # 2. 检测人脸 / Detect faces for frame X
                 faces = detector(img_rd, 0)
@@ -218,9 +214,7 @@ class VideoCamera:
                                 for i in range(len(faces)):
                                     shape = predictor(img_rd, faces[i])
                                     self.current_frame_face_feature_list.append(
-                                        face_reco_model.compute_face_descriptor(
-                                            img_rd, shape
-                                        )
+                                        face_reco_model.compute_face_descriptor(img_rd, shape)
                                     )
 
                                 # a. 遍历捕获到的图像中所有的人脸 / Traversal all the faces in the database
@@ -231,11 +225,7 @@ class VideoCamera:
                                     self.current_frame_face_position_list.append(
                                         (
                                             faces[k].left(),
-                                            int(
-                                                faces[k].bottom()
-                                                + (faces[k].bottom() - faces[k].top())
-                                                / 4
-                                            ),
+                                            int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4),
                                         )
                                     )
 
@@ -247,14 +237,10 @@ class VideoCamera:
                                                 self.features_known_list[i],
                                             )
                                             # print(e_distance_tmp)
-                                            self.current_frame_face_X_e_distance_list.append(
-                                                e_distance_tmp
-                                            )
+                                            self.current_frame_face_X_e_distance_list.append(e_distance_tmp)
                                         else:
                                             # 空数据 person_X / For empty data
-                                            self.current_frame_face_X_e_distance_list.append(
-                                                999999999
-                                            )
+                                            self.current_frame_face_X_e_distance_list.append(999999999)
                                     # print("            >>> current_frame_face_X_e_distance_list:",
                                     #       self.current_frame_face_X_e_distance_list)
 
@@ -265,29 +251,14 @@ class VideoCamera:
                                     #      ": ",
                                     #      min(self.current_frame_face_X_e_distance_list))
 
-                                    if (
-                                        min(self.current_frame_face_X_e_distance_list)
-                                        < 0.4
-                                    ):
+                                    if min(self.current_frame_face_X_e_distance_list) < 0.4:
                                         # 在这里更改显示的人名
                                         # self.show_chinese_name()
-                                        self.current_frame_name_list[
-                                            k
-                                        ] = self.name_known_list[similar_person_num]
-                                        now = time.strftime(
-                                            "%Y-%m-%d %H:%M", time.localtime()
-                                        )
-                                        mm = (
-                                            self.name_known_list[similar_person_num]
-                                            + "  "
-                                            + now
-                                            + "  已签到\n"
-                                        )
+                                        self.current_frame_name_list[k] = self.name_known_list[similar_person_num]
+                                        now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+                                        mm = self.name_known_list[similar_person_num] + "  " + now + "  已签到\n"
                                         file.write(
-                                            self.name_known_list[similar_person_num]
-                                            + "  "
-                                            + now
-                                            + "     已签到\n"
+                                            self.name_known_list[similar_person_num] + "  " + now + "     已签到\n"
                                         )
                                         attend_records.append(mm)
                                         # session['attend'].append(mm)
@@ -315,10 +286,7 @@ class VideoCamera:
 
                                     self.current_frame_face_position_list[k] = (
                                         faces[k].left(),
-                                        int(
-                                            faces[k].bottom()
-                                            + (faces[k].bottom() - faces[k].top()) / 4
-                                        ),
+                                        int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4),
                                     )
 
                                     # print("   >>> self.current_frame_name_list:              ",
@@ -343,9 +311,7 @@ class VideoCamera:
                             for i in range(len(faces)):
                                 shape = predictor(img_rd, faces[i])
                                 self.current_frame_face_feature_list.append(
-                                    face_reco_model.compute_face_descriptor(
-                                        img_rd, shape
-                                    )
+                                    face_reco_model.compute_face_descriptor(img_rd, shape)
                                 )
 
                             # a. 遍历捕获到的图像中所有的人脸
@@ -356,10 +322,7 @@ class VideoCamera:
                                 self.current_frame_face_position_list.append(
                                     (
                                         faces[k].left(),
-                                        int(
-                                            faces[k].bottom()
-                                            + (faces[k].bottom() - faces[k].top()) / 4
-                                        ),
+                                        int(faces[k].bottom() + (faces[k].bottom() - faces[k].top()) / 4),
                                     )
                                 )
 
@@ -374,45 +337,25 @@ class VideoCamera:
                                             self.features_known_list[i],
                                         )
                                         # print(e_distance_tmp)
-                                        self.current_frame_face_X_e_distance_list.append(
-                                            e_distance_tmp
-                                        )
+                                        self.current_frame_face_X_e_distance_list.append(e_distance_tmp)
                                     else:
                                         # 空数据 person_X
-                                        self.current_frame_face_X_e_distance_list.append(
-                                            999999999
-                                        )
+                                        self.current_frame_face_X_e_distance_list.append(999999999)
 
                                 # d. 寻找出最小的欧式距离匹配
-                                similar_person_num = (
-                                    self.current_frame_face_X_e_distance_list.index(
-                                        min(self.current_frame_face_X_e_distance_list)
-                                    )
+                                similar_person_num = self.current_frame_face_X_e_distance_list.index(
+                                    min(self.current_frame_face_X_e_distance_list)
                                 )
 
                                 if min(self.current_frame_face_X_e_distance_list) < 0.4:
                                     # 在这里更改显示的人名
                                     # self.show_chinese_name()
-                                    self.current_frame_name_list[
-                                        k
-                                    ] = self.name_known_list[similar_person_num]
+                                    self.current_frame_name_list[k] = self.name_known_list[similar_person_num]
                                     # print("            >>> recognition result for face " + str(k + 1) + ": " +
                                     #     self.name_known_list[similar_person_num])
-                                    now = time.strftime(
-                                        "%Y-%m-%d %H:%M", time.localtime()
-                                    )
-                                    mm = (
-                                        self.name_known_list[similar_person_num]
-                                        + "  "
-                                        + now
-                                        + "  已签到\n"
-                                    )
-                                    file.write(
-                                        self.name_known_list[similar_person_num]
-                                        + "  "
-                                        + now
-                                        + "  已签到\n"
-                                    )
+                                    now = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+                                    mm = self.name_known_list[similar_person_num] + "  " + now + "  已签到\n"
+                                    file.write(self.name_known_list[similar_person_num] + "  " + now + "  已签到\n")
                                     # session['attend'].append(mm)
                                     attend_records.append(mm)
                                 else:
@@ -454,9 +397,7 @@ def gen(camera, cid):
         with app.app_context():
             frame = camera.get_frame(cid)
             # 使用generator函数输出视频流， 每次请求输出的content类型是image/jpeg
-            yield (
-                b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n"
-            )
+            yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
 
 
 @teacher.route("/video_feed", methods=["GET", "POST"])  # 这个地址返回视频流响应
@@ -481,7 +422,6 @@ def records():
     attend_records = []
     now = time.strftime("%Y-%m-%d %H:00:00", time.localtime())
     cid = request.form.get("id")
-    print(cid)
     session["course"] = cid
     session["now_time"] = now
     # 添加课程考勤记录
@@ -495,9 +435,7 @@ def records():
     # 考勤记录初始化，所有人未签到
     all_students_attend = []
     for i in range(len(student_ids)):
-        someone_addtend = Attendance(
-            s_id=student_ids[i], c_id=cid, time=now, result="缺勤"
-        )
+        someone_addtend = Attendance(s_id=student_ids[i], c_id=cid, time=now, result="缺勤")
         all_students_attend.append(someone_addtend)
     db.session.add_all(all_students_attend)
     db.session.commit()
@@ -541,9 +479,7 @@ def select_all_records():
         sid = request.form.get("sid")
         select_time = request.form.get("time")
         if cid != "" and select_time != "":
-            courses = db.session.query(Course).filter(
-                Course.t_id == tid, Course.c_id == cid
-            )
+            courses = db.session.query(Course).filter(Course.t_id == tid, Course.c_id == cid)
             num = 0
             for course in courses:
                 times = course.times.split("/")
@@ -577,13 +513,9 @@ def select_all_records():
                         one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
             courses = db.session.query(Course).filter(Course.t_id == tid)
-            return render_template(
-                "teacher/show_records.html", dict=dict, courses=courses
-            )
+            return render_template("teacher/show_records.html", dict=dict, courses=courses)
         elif cid != "" and select_time == "":
-            courses = db.session.query(Course).filter(
-                Course.t_id == tid, Course.c_id == cid
-            )
+            courses = db.session.query(Course).filter(Course.t_id == tid, Course.c_id == cid)
             num = 0
             for course in courses:
                 times = course.times.split("/")
@@ -614,9 +546,7 @@ def select_all_records():
                     num += 1
                     one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
-            return render_template(
-                "teacher/show_records.html", dict=dict, courses=courses
-            )
+            return render_template("teacher/show_records.html", dict=dict, courses=courses)
         elif cid == "" and select_time != "":
             courses = db.session.query(Course).filter(Course.t_id == tid)
             num = 0
@@ -651,9 +581,7 @@ def select_all_records():
                         num += 1
                         one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
-            return render_template(
-                "teacher/show_records.html", dict=dict, courses=courses
-            )
+            return render_template("teacher/show_records.html", dict=dict, courses=courses)
         else:  # cid = '' select=''
             courses = db.session.query(Course).filter(Course.t_id == tid)
             num = 0
@@ -685,9 +613,7 @@ def select_all_records():
                     num += 1
                     one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
-            return render_template(
-                "teacher/show_records.html", dict=dict, courses=courses
-            )
+            return render_template("teacher/show_records.html", dict=dict, courses=courses)
     courses = db.session.query(Course).filter(Course.t_id == tid)
     num = 0
     for course in courses:
@@ -734,10 +660,7 @@ def course_management():
     teacher_all_course = Course.query.filter(Course.t_id == session["id"])
     for course in teacher_all_course:
         course_student = (
-            db.session.query(Student)
-            .join(SC)
-            .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id)
-            .all()
+            db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
         )
         dict[course] = course_student
     return render_template("teacher/course_management.html", dict=dict)
@@ -808,46 +731,29 @@ def select_sc():
             )
         elif cid != "" and sid == "":
             course = Course.query.filter(Course.c_id == cid).first()
-            dict[course] = (
-                db.session.query(Student)
-                .join(SC)
-                .filter(Student.s_id == SC.s_id, SC.c_id == cid)
-                .all()
-            )
+            dict[course] = db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == cid).all()
         elif cid == "" and sid != "":
             for course in teacher_all_course:
                 course_student = (
                     db.session.query(Student)
                     .join(SC)
-                    .filter(
-                        Student.s_id == SC.s_id, SC.c_id == course.c_id, SC.s_id == sid
-                    )
+                    .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id, SC.s_id == sid)
                     .all()
                 )
                 dict[course] = course_student
         else:
             for course in teacher_all_course:
                 course_student = (
-                    db.session.query(Student)
-                    .join(SC)
-                    .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id)
-                    .all()
+                    db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
                 )
                 dict[course] = course_student
-        return render_template(
-            "teacher/student_getFace.html", dict=dict, courses=teacher_all_course
-        )
+        return render_template("teacher/student_getFace.html", dict=dict, courses=teacher_all_course)
     for course in teacher_all_course:
         course_student = (
-            db.session.query(Student)
-            .join(SC)
-            .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id)
-            .all()
+            db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
         )
         dict[course] = course_student
-    return render_template(
-        "teacher/student_getFace.html", dict=dict, courses=teacher_all_course
-    )
+    return render_template("teacher/student_getFace.html", dict=dict, courses=teacher_all_course)
 
 
 @teacher.route("/open_getFace", methods=["POST"])
@@ -950,12 +856,7 @@ def select_all_teacher():
             flag = request.form.get("flag")
             teacher = Teacher.query.get(id)
             if flag:
-                sc = (
-                    db.session.query(SC)
-                    .join(Course)
-                    .filter(SC.c_id == Course.c_id, Course.t_id == id)
-                    .all()
-                )
+                sc = db.session.query(SC).join(Course).filter(SC.c_id == Course.c_id, Course.t_id == id).all()
                 [db.session.delete(u) for u in sc]
                 Course.query.filter(Course.t_id == id).delete()
             db.session.delete(teacher)
@@ -1082,17 +983,9 @@ def download():
     cname = request.form.get("cname")
     time = request.form.get("time")
     # 建立数据库引擎
-    engine = create_engine(
-        "mysql+pymysql://root:990722@localhost:3306/test?charset=utf8"
-    )
+    engine = create_engine("mysql+pymysql://root:990722@localhost:3306/test?charset=utf8")
     # 写一条sql
-    sql = (
-        "select s_id 学号,result 考勤结果 from attendance where c_id='"
-        + str(cid)
-        + "' and time='"
-        + str(time)
-        + "'"
-    )
+    sql = "select s_id 学号,result 考勤结果 from attendance where c_id='" + str(cid) + "' and time='" + str(time) + "'"
     print(sql)
     # 建立dataframe
     df = pd.read_sql_query(sql, engine)
