@@ -5,9 +5,7 @@ from datetime import datetime
 from sqlalchemy import extract
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
 
-from app import db
-from app import get_faces_from_camera as gf
-from app import features_extraction_to_csv as fc
+from app import db, get_faces_from_camera, features_extraction_to_csv
 
 from .models import SC, Faces, Course, Student, Teacher, Attendance
 
@@ -110,7 +108,7 @@ def get_faces():
         imgdata = request.form.get("face")
         imgdata = base64.b64decode(imgdata)
         path = "app/static/data/data_faces_from_camera/" + session["id"]
-        up = gf.Face_Register()
+        up = get_faces_from_camera.Face_Register()
         if session["num"] == 0:
             pre_work_mkdir(path)
         if session["num"] == 5:
@@ -122,7 +120,6 @@ def get_faces():
         flag = up.single_pocess(current_face_path)
         if flag != "right":
             session["num"] -= 1
-        [{"result": flag, "code": session["num"]}]
         return {"result": flag, "code": session["num"]}
         # faceimg = face_recognition.load_image_file("a.png")
         # facedata = face_recognition.face_encodings(faceimg)[0]
@@ -141,7 +138,7 @@ def upload_faces():
         path_images_from_camera = "app/static/data/data_faces_from_camera/"
         path = path_images_from_camera + session["id"]
         print(path)
-        features_mean_personX = fc.return_features_mean_personX(path)
+        features_mean_personX = features_extraction_to_csv.return_features_mean_personX(path)
         features = str(features_mean_personX[0])
         for i in range(1, 128):
             features = features + "," + str(features_mean_personX[i])
@@ -202,42 +199,18 @@ def my_records():
                 .all()
             )
             dict[course] = one_course_records
-            courses = (
-                db.session.query(Course)
-                .join(SC)
-                .filter(SC.s_id == sid)
-                .order_by("c_id")
-                .all()
-            )
-            return render_template(
-                "student/my_records.html", dict=dict, courses=courses
-            )
+            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            return render_template("student/my_records.html", dict=dict, courses=courses)
         elif cid != "" and time == "":
             course = Course.query.filter(Course.c_id == cid).first()
             one_course_records = (
-                db.session.query(Attendance)
-                .filter(Attendance.s_id == sid, Attendance.c_id == cid)
-                .all()
+                db.session.query(Attendance).filter(Attendance.s_id == sid, Attendance.c_id == cid).all()
             )
             dict[course] = one_course_records
-            courses = (
-                db.session.query(Course)
-                .join(SC)
-                .filter(SC.s_id == sid)
-                .order_by("c_id")
-                .all()
-            )
-            return render_template(
-                "student/my_records.html", dict=dict, courses=courses
-            )
+            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            return render_template("student/my_records.html", dict=dict, courses=courses)
         elif cid == "" and time != "":
-            courses = (
-                db.session.query(Course)
-                .join(SC)
-                .filter(SC.s_id == sid)
-                .order_by("c_id")
-                .all()
-            )
+            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
             for course in courses:
                 one_course_records = (
                     db.session.query(Attendance)
@@ -250,22 +223,12 @@ def my_records():
                     .all()
                 )
                 dict[course] = one_course_records
-            courses = (
-                db.session.query(Course)
-                .join(SC)
-                .filter(SC.s_id == sid)
-                .order_by("c_id")
-                .all()
-            )
-            return render_template(
-                "student/my_records.html", dict=dict, courses=courses
-            )
+            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            return render_template("student/my_records.html", dict=dict, courses=courses)
         else:  # cid =='' and time ==''
             pass
     # all_course_record = []
-    courses = (
-        db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
-    )
+    courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
     # print(courses)
     for course in courses:
         one_course_records = (
@@ -295,9 +258,7 @@ def choose_course():
         cids = []
         for sc in now_have_courses_sc:
             cids.append(sc.c_id)
-        not_hava_courses = Course.query.filter(
-            Course.c_id.notin_(cids), Course.flag == "可选课"
-        ).all()
+        not_hava_courses = Course.query.filter(Course.c_id.notin_(cids), Course.flag == "可选课").all()
         for ncourse in not_hava_courses:
             teacher = Teacher.query.filter(Teacher.t_id == ncourse.t_id).first()
             dict[ncourse] = teacher
@@ -322,9 +283,7 @@ def unchoose_course():
         cids = []
         for sc in now_have_courses_sc:
             cids.append(sc.c_id)
-        hava_courses = Course.query.filter(
-            Course.c_id.in_(cids), Course.flag == "可选课"
-        ).all()
+        hava_courses = Course.query.filter(Course.c_id.in_(cids), Course.flag == "可选课").all()
         for course in hava_courses:
             teacher = Teacher.query.filter(Teacher.t_id == course.t_id).first()
             dict[course] = teacher
