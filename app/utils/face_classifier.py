@@ -18,20 +18,22 @@ class FaceClassifier:
             f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
         )
 
-    async def face_descriptors(self, image_path: str):
+    async def face_descriptors(self, image_path: str) -> Union[dlib.vector, None]:
         image = cv2.imread(image_path)
         if image is None:
             logger.error(message_translator("ERRORS.FILE.STATUS.NOT_FOUND"))
             return None
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        detected_faces = self.face_detector(rgb_image)
-        face_descriptors = []
-        for face_rect in detected_faces:
-            shape = self.shape_predictor(rgb_image, face_rect)
-            face_descriptor = self.face_recognition_model.compute_face_descriptor(rgb_image, shape)
-            face_descriptors.append(face_descriptor)
-        return face_descriptors
+        faces = self.face_detector(rgb_image, 1)
+
+        if len(faces) != 1:
+            logger.warning(f"{len(faces)} faces detected. Expected exactly one face.")
+            return None
+
+        shape = self.shape_predictor(rgb_image, faces[0])
+        face_descriptor = self.face_recognition_model.compute_face_descriptor(rgb_image, shape)
+        return face_descriptor
 
     def preprocess_face(self, image_path):
         img = cv2.imread(image_path)
