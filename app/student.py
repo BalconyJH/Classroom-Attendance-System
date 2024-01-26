@@ -1,11 +1,13 @@
 import os
 import base64
+from pathlib import Path
 from datetime import datetime
 
 from sqlalchemy import extract
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
 
-from app import db, get_faces_from_camera, features_extraction_to_csv
+from config import config
+from app import db, app, get_faces_from_camera, features_extraction_to_csv
 
 from .models import SC, Faces, Course, Student, Teacher, Attendance
 
@@ -107,17 +109,18 @@ def get_faces():
     if request.method == "POST":
         imgdata = request.form.get("face")
         imgdata = base64.b64decode(imgdata)
-        path = "app/static/data/data_faces_from_camera/" + session["id"]
-        up = get_faces_from_camera.Face_Register()
+        path = Path(config.cache_path / "dataset" / session["id"])
+        face_register = get_faces_from_camera.Face_Register(app.logger)
+        face_register.test_func()
         if session["num"] == 0:
             pre_work_mkdir(path)
         if session["num"] == 5:
             session["num"] = 0
         session["num"] += 1
-        current_face_path = path + "/" + str(session["num"]) + ".jpg"
+        current_face_path = path / f"{session['num']}.jpg"
         with open(current_face_path, "wb") as f:
             f.write(imgdata)
-        flag = up.single_pocess(current_face_path)
+        flag = face_register.single_pocess(str(current_face_path))
         if flag != "right":
             session["num"] -= 1
         return {"result": flag, "code": session["num"]}
