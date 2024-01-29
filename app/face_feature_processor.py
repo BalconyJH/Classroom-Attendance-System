@@ -1,11 +1,11 @@
+import os
+from concurrent.futures import ProcessPoolExecutor
+
 import cv2
 import dlib
 import numpy as np
 
-from . import app
-
-# Dlib 正向人脸检测器
-detector = dlib.get_frontal_face_detector()
+from config import config
 
 
 def extract_and_resize_face(image: np.ndarray, face_rect: dlib.rectangle, scale_factor: int = 2) -> np.ndarray:
@@ -41,7 +41,6 @@ def is_face_within_bounds(face_rect: dlib.rectangle, bounds: tuple[int, int]) ->
     判断人脸是否在指定的范围内。
 
     :param face_rect: 人脸的矩形框。
-    :param image_shape: 图像的尺寸。
     :param bounds: 允许的最大范围。
     :return: 如果人脸在范围内，返回True；否则返回False。
     """
@@ -58,35 +57,20 @@ def is_face_within_bounds(face_rect: dlib.rectangle, bounds: tuple[int, int]) ->
     )
 
 
-class FaceRegister:
+class FaceFeatureProcessor:
     def __init__(self, logger):
-        self.logger = logger
-
-    async def check_camera(self):
-        stream = cv2.VideoCapture(self.video_stream)
-        app.logger.debug(f"Stream Fps: {round(stream.get(cv2.CAP_PROP_FPS), 2)}")
-        self.logger.debug(f"Stream Backend: {stream.getBackendName()}")
-        self.logger.debug(
-            f"Stream Size(W*H): {stream.get(cv2.CAP_PROP_FRAME_WIDTH)}*" f"{stream.get(cv2.CAP_PROP_FRAME_HEIGHT)}"
+        self.face_detector = dlib.get_frontal_face_detector()
+        self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
+        self.face_recognition_model = dlib.face_recognition_model_v1(
+            f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
         )
-        self.logger.info("Camera Check Start, press ESC to exit")
-        while stream.isOpened():
-            ret, frame = stream.read()
-            if not ret:
-                self.logger.error("Camera is not working")
-                break
-            cv2.imshow("Camera Checking", frame)
-
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-        stream.release()
-        cv2.destroyAllWindows()
+        self.logger = logger
 
     def process_single_face_image(self, path: str) -> str:
         # 读取人脸图像
         img_rd = cv2.imread(path)
         # Dlib的人脸检测器
-        faces: list[dlib.rectangle] = detector(img_rd, 0)
+        faces: list[dlib.rectangle] = self.face_detector(img_rd, 0)
 
         if len(faces) != 1:
             self.logger.warning(f"{len(faces)} faces detected. Expected exactly one face.")
@@ -102,3 +86,35 @@ class FaceRegister:
         cv2.imwrite(path, img_blank)
         self.logger.info(f"Processed and saved image: {path}")
         return "right"
+
+    def extract_face_features_128d(self, path_img: str):
+        image = cv2.imread(path_img)
+        faces = self.face_detector(image, 1)
+
+        if faces:
+            shape = self.shape_predictor(image, faces[0])
+            return self.face_recognition_model.compute_face_descriptor(image, shape)
+        else:
+            self.logger.warning(f"No face detected in image: {path_img}")
+            return None
+
+    def calculate_average_face_features(self, path: str) -> np.ndarray:
+        def process_image(photo_path):
+            features_128d = self.extract_face_features_128d(photo_path)
+            if features_128d is not None:
+                return features_128d
+            return None
+
+        photo_paths = [os.path.join(path, photo_name) for photo_name in os.listdir(path)]
+        face_feature_vectors = []
+
+        with ProcessPoolExecutor() as executor:
+            results = executor.map(process_image, photo_paths)
+
+        for result in results:
+            if result is not None:
+                face_feature_vectors.append(result)
+
+        if face_feature_vectors:
+            return np.array(face_feature_vectors).mean(axis=0)
+        return np.zeros(128, dtype=int, order="C")
