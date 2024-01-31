@@ -6,9 +6,10 @@ from datetime import datetime
 from sqlalchemy import extract
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
 
+from app import db, app
 from config import config
-from app import db, app, get_faces_from_camera, features_extraction_to_csv
 
+from .face_feature_processor import FaceFeatureProcessor
 from .models import SC, Faces, Course, Student, Teacher, Attendance
 
 student = Blueprint("student", __name__, static_folder="static")
@@ -93,25 +94,11 @@ def pre_work_mkdir(path_photos_from_camera):
 
 @student.route("/get_faces", methods=["GET", "POST"])
 def get_faces():
-    """
-    功能:接收前端上传来的人脸图片,完成数据库的保存
-    1、取上传来的数据的参数 request.form.get("myimg")
-    2、上传的数据是base64格式,调用后端的base64进行解码
-    3、存到后台变成图片
-    4、调用face_reconginition的load_image-file读取文件
-    5、调用 face-recognition的face_encodings对脸部进行编码
-    6、利用bson和pickle模块组合把脸部编码数据变成128位bitdata数据
-    7、利用mongo.db.myface.insert_one插入数据,存储到mongodb里面
-    上面是逻辑,但逻辑发生在post方式上,不发生在get,
-    限定一下上面逻辑的发生条件,不是POST方式,就是GET,GET请求页面
-    :return:
-    """
     if request.method == "POST":
         imgdata = request.form.get("face")
         imgdata = base64.b64decode(imgdata)
         path = Path(config.cache_path / "dataset" / session["id"])
-        face_register = get_faces_from_camera.Face_Register(app.logger)
-        face_register.test_func()
+        face_register = FaceFeatureProcessor(app.logger)
         if session["num"] == 0:
             pre_work_mkdir(path)
         if session["num"] == 5:
@@ -120,52 +107,51 @@ def get_faces():
         current_face_path = path / f"{session['num']}.jpg"
         with open(current_face_path, "wb") as f:
             f.write(imgdata)
-        flag = face_register.single_pocess(str(current_face_path))
+        flag = face_register.process_single_face_image(str(current_face_path))
         if flag != "right":
             session["num"] -= 1
         return {"result": flag, "code": session["num"]}
-        # faceimg = face_recognition.load_image_file("a.png")
-        # facedata = face_recognition.face_encodings(faceimg)[0]
-        # print(facedata)
-        # binary_data = Binary(pickle.dumps(facedata, protocol=-1), subtype=128)
-        # mongo.db.myface.insert_one({'face': binary_data})
-
-        # return {"result": "OK"}
     return render_template("student/get_faces.html")
 
 
-# 计算特征值存数据库
+def extract_and_process_features():
+    path = os.path.join(config.cache_path, "dataset", session["id"])
+    average_face_features = FaceFeatureProcessor(app.logger).calculate_average_face_features(str(path))
+    features = ",".join(str(feature) for feature in average_face_features)
+    app.logger.info(" >> 特征均值 / The mean of features:", list(average_face_features), "\n")
+    return features
+
+
+def update_database_with_features(features):
+    student_face = Faces.query.filter(Faces.s_id == session["id"]).first()
+    if student_face:
+        student_face.feature = features
+    else:
+        face = Faces(s_id=session["id"], feature=features)
+        db.session.add(face)
+    db.session.commit()
+    update_student_flag()
+
+
+def update_student_flag():
+    student_record = Student.query.filter(Student.s_id == session["id"]).first()
+    if student_record:
+        student_record.flag = 0
+        db.session.commit()
+
+
 @student.route("/upload_faces", methods=["POST"])
 def upload_faces():
     try:
-        path_images_from_camera = "app/static/data/data_faces_from_camera/"
-        path = path_images_from_camera + session["id"]
-        print(path)
-        features_mean_personX = features_extraction_to_csv.return_features_mean_personX(path)
-        features = str(features_mean_personX[0])
-        for i in range(1, 128):
-            features = features + "," + str(features_mean_personX[i])
-        student = Faces.query.filter(Faces.s_id == session["id"]).first()
-        if student:
-            student.feature = features
-        else:
-            face = Faces(s_id=session["id"], feature=features)
-            db.session.add(face)
-        db.session.commit()
-        # writer.writerow(features_mean_personX)
-        print(" >> 特征均值 / The mean of features:", list(features_mean_personX), "\n")
-        # up = gf.Face_Register()
-        # current_face_path = "app/static/data/data_faces_from_camera/" + session['id'] + "/"
-        # up.process(current_face_path)
-        # msg = 'success'
-        # return render_template('student/student_home.html', msg = msg)
-        student = Student.query.filter(Student.s_id == session["id"]).first()
-        student.flag = 0
-        db.session.commit()
+        # 提取特征并处理数据
+        features = extract_and_process_features()
+        # 更新数据库
+        update_database_with_features(features)
+        # 设置成功消息并重定向
         flash("提交成功！")
         return redirect(url_for("student.home"))
     except Exception as e:
-        print("Error:", e)
+        app.logger.debug("Error:", e)
         flash("提交不合格照片，请拍摄合格后再重试")
         return redirect(url_for("student.home"))
 
