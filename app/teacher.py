@@ -1,6 +1,7 @@
 import os
 import time
 from io import BytesIO
+from typing import Union
 from urllib.parse import quote
 
 import cv2
@@ -13,7 +14,7 @@ from flask import Response, Blueprint, flash, jsonify, request, session, url_for
 
 from app import db, app
 
-from .models import SC, Faces, Course, Student, Teacher, Time_id, Attendance
+from .models import Faces, Course, Student, Teacher, Time_id, Attendance, StudentCourse
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -28,7 +29,7 @@ def home():
     courses = {}
     course = db.session.query(Course).filter(Course.t_id == session["id"]).all()
     for c in course:
-        num = db.session.query(SC).filter(SC.c_id == c.c_id).count()
+        num = db.session.query(StudentCourse).filter(StudentCourse.c_id == c.c_id).count()
         courses[c] = num
     return render_template(
         "teacher/teacher_home.html",
@@ -49,10 +50,10 @@ face_reco_model = dlib.face_recognition_model_v1("app/static/data_dlib/dlib_face
 
 
 class VideoCamera:
-    def __init__(self):
+    def __init__(self, video_stream: Union[int, str] = 0):
         self.font = cv2.FONT_ITALIC
         # 通过opencv获取实时视频流
-        self.video = cv2.VideoCapture(0)
+        self.video = cv2.VideoCapture(video_stream)
 
         # 统计 FPS
         self.frame_time = 0
@@ -392,18 +393,23 @@ def reco_faces():
     return render_template("teacher/index.html")
 
 
-def gen(camera, cid):
+def stream_video_frames(camera: VideoCamera, course_id: str):
+    """
+    生成视频流的帧数据
+    :param camera: VideoCamera对象
+    :param course_id: 课程id
+    :return: 生成器，每次返回一帧的数据
+    """
     while True:
         with app.app_context():
-            frame = camera.get_frame(cid)
-            # 使用generator函数输出视频流， 每次请求输出的content类型是image/jpeg
+            frame = camera.get_frame(course_id)
             yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
 
 
-@teacher.route("/video_feed", methods=["GET", "POST"])  # 这个地址返回视频流响应
+@teacher.route("/video_feed", methods=["GET", "POST"])
 def video_feed():
     return Response(
-        gen(VideoCamera(), session["course"]),
+        stream_video_frames(VideoCamera(), session["course"]),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -415,31 +421,39 @@ def all_course():
 
 
 # 开启签到
-@teacher.route("/records", methods=["POST"])
-def records():
-    # 开启签到后，开始单次的记录
-    global attend_records
-    attend_records = []
-    now = time.strftime("%Y-%m-%d %H:00:00", time.localtime())
-    cid = request.form.get("id")
-    session["course"] = cid
-    session["now_time"] = now
-    # 添加课程考勤记录
-    course = Course.query.filter(Course.c_id == cid).first()
-    course.times = course.times + "/" + str(now)
-    db.session.commit()
-    the_course_students = SC.query.filter(SC.c_id == cid)
-    student_ids = []
-    for sc in the_course_students:
-        student_ids.append(sc.s_id)
-    # 考勤记录初始化，所有人未签到
-    all_students_attend = []
-    for i in range(len(student_ids)):
-        someone_addtend = Attendance(s_id=student_ids[i], c_id=cid, time=now, result="缺勤")
-        all_students_attend.append(someone_addtend)
+def update_course_times(cid: str) -> Union[str, None]:
+    """更新课程的考勤次数"""
+    course = Course.query.filter_by(c_id=cid).first()
+    if course:
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        course.times = f"{course.times}/{now}"
+        db.session.commit()
+        return now
+    return None
+
+
+def initialize_attendance_records(cid: str, now: str) -> None:
+    """初始化考勤记录，标记所有学生为未签到"""
+    the_course_students = StudentCourse.query.filter_by(c_id=cid)
+    all_students_attend = [Attendance(s_id=sc.s_id, c_id=cid, time=now, result="缺勤") for sc in the_course_students]
     db.session.add_all(all_students_attend)
     db.session.commit()
-    # right_attend = Attendance.query.filter(Attendance.c_id==cid,Attendance.result==1)
+
+
+@teacher.route("/records", methods=["POST"])
+def records():
+    cid = request.form.get("id")
+    if not cid:
+        flash("课程号不能为空")
+
+    session["course"] = cid
+    now = update_course_times(cid)
+    if not now:
+        flash("课程号不存在")
+
+    session["now_time"] = now
+    initialize_attendance_records(cid, now)
+
     return render_template("teacher/index.html")
 
 
@@ -456,7 +470,6 @@ def stop_records():
     all_cid = session["course"]
     all_time = session["now_time"]
     for someone_attend in attend_records:
-        print(someone_attend)
         sid = someone_attend.split("  ")[0]
 
         all_sid.append(sid)
@@ -654,13 +667,16 @@ def course_management():
         cid = request.form.get("course_id")
         request.form.get("course_name")
         sid = request.form.get("sid")
-        sc = SC.query.filter(SC.c_id == cid, SC.s_id == sid).first()
+        sc = StudentCourse.query.filter(StudentCourse.c_id == cid, StudentCourse.s_id == sid).first()
         db.session.delete(sc)
         db.session.commit()
     teacher_all_course = Course.query.filter(Course.t_id == session["id"])
     for course in teacher_all_course:
         course_student = (
-            db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
+            db.session.query(Student)
+            .join(StudentCourse)
+            .filter(Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id)
+            .all()
         )
         dict[course] = course_student
     return render_template("teacher/course_management.html", dict=dict)
@@ -725,32 +741,47 @@ def select_sc():
             course = Course.query.filter(Course.c_id == cid).first()
             dict[course] = (
                 db.session.query(Student)
-                .join(SC)
-                .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id, SC.s_id == sid)
+                .join(StudentCourse)
+                .filter(
+                    Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id, StudentCourse.s_id == sid
+                )
                 .all()
             )
         elif cid != "" and sid == "":
             course = Course.query.filter(Course.c_id == cid).first()
-            dict[course] = db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == cid).all()
+            dict[course] = (
+                db.session.query(Student)
+                .join(StudentCourse)
+                .filter(Student.s_id == StudentCourse.s_id, StudentCourse.c_id == cid)
+                .all()
+            )
         elif cid == "" and sid != "":
             for course in teacher_all_course:
                 course_student = (
                     db.session.query(Student)
-                    .join(SC)
-                    .filter(Student.s_id == SC.s_id, SC.c_id == course.c_id, SC.s_id == sid)
+                    .join(StudentCourse)
+                    .filter(
+                        Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id, StudentCourse.s_id == sid
+                    )
                     .all()
                 )
                 dict[course] = course_student
         else:
             for course in teacher_all_course:
                 course_student = (
-                    db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
+                    db.session.query(Student)
+                    .join(StudentCourse)
+                    .filter(Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id)
+                    .all()
                 )
                 dict[course] = course_student
         return render_template("teacher/student_getFace.html", dict=dict, courses=teacher_all_course)
     for course in teacher_all_course:
         course_student = (
-            db.session.query(Student).join(SC).filter(Student.s_id == SC.s_id, SC.c_id == course.c_id).all()
+            db.session.query(Student)
+            .join(StudentCourse)
+            .filter(Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id)
+            .all()
         )
         dict[course] = course_student
     return render_template("teacher/student_getFace.html", dict=dict, courses=teacher_all_course)
@@ -799,13 +830,11 @@ def sid_if_exist(sid):
     return num
 
 
-# 检测课程号存在
 def cid_if_exist(cid):
     num = Course.query.filter(Course.c_id.in_(cid)).count()
     return num
 
 
-# 检测工号存在
 def tid_if_exist(tid):
     num = Teacher.query.filter(Teacher.t_id.in_(tid)).count()
     return num
@@ -829,7 +858,7 @@ def upload_sc():
                 if sid_diff == 0 and cid_diff == 0:
                     flash("success")
                     for i in range(len(sid)):
-                        sc = SC(s_id=sid[i], c_id=cid[i])
+                        sc = StudentCourse(s_id=sid[i], c_id=cid[i])
                         db.session.merge(sc)
                         i += 1
                     db.session.commit()
@@ -856,7 +885,12 @@ def select_all_teacher():
             flag = request.form.get("flag")
             teacher = Teacher.query.get(id)
             if flag:
-                sc = db.session.query(SC).join(Course).filter(SC.c_id == Course.c_id, Course.t_id == id).all()
+                sc = (
+                    db.session.query(StudentCourse)
+                    .join(Course)
+                    .filter(StudentCourse.c_id == Course.c_id, Course.t_id == id)
+                    .all()
+                )
                 [db.session.delete(u) for u in sc]
                 Course.query.filter(Course.t_id == id).delete()
             db.session.delete(teacher)
@@ -884,7 +918,7 @@ def select_all_student():
             flag = request.form.get("flag")
             student = Student.query.get(id)
             if flag:
-                SC.query.filter(SC.s_id == id).delete()
+                StudentCourse.query.filter(StudentCourse.s_id == id).delete()
             db.session.delete(student)
             db.session.commit()
         except Exception as e:
@@ -894,7 +928,7 @@ def select_all_student():
     students = Student.query.all()
     dict = {}
     for s in students:
-        tc = SC.query.filter(SC.s_id == s.s_id).all()
+        tc = StudentCourse.query.filter(StudentCourse.s_id == s.s_id).all()
         if tc:
             dict[s] = 1
         else:
