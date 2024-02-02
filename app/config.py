@@ -7,10 +7,10 @@ from pydantic_settings import BaseSettings
 
 class Config(BaseSettings):
     log_level: str = "INFO"
-    cache_path: Path = Path(__file__).parent / "resources" / "caches"
-    static_path: Path = Path(__file__).parent / "resources" / "statics"
-    face_model_path: Path = Path(__file__).parent / "resources" / "models"
-    translation_path: Path = Path(__file__).parent / "resources" / "translations"
+    cache_path: Path = Path(__file__).parent / "static" / "caches"
+    static_path: Path = Path(__file__).parent / "static" / "compress_models"
+    face_model_path: Path = Path(__file__).parent / "static" / "models"
+    translation_path: Path = Path(__file__).parent / "static" / "translations"
     language_type: str = "zh_CN"
 
     # Flask specific settings

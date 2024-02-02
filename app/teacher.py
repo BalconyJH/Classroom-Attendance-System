@@ -10,9 +10,10 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 from PIL import Image, ImageDraw, ImageFont
+from utils import return_euclidean_distance
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
-from app import db, app
+from app import db, app, config
 
 from .models import Faces, Course, Student, Teacher, Time_id, Attendance, StudentCourse
 
@@ -40,17 +41,14 @@ def home():
     )
 
 
-# Dlib 正向人脸检测器
-detector = dlib.get_frontal_face_detector()
-# Dlib 人脸 landmark 特征点检测器
-predictor = dlib.shape_predictor("app/static/data_dlib/shape_predictor_68_face_landmarks.dat")
-
-# Dlib Resnet 人脸识别模型，提取 128D 的特征矢量
-face_reco_model = dlib.face_recognition_model_v1("app/static/data_dlib/dlib_face_recognition_resnet_model_v1.dat")
-
-
 class VideoCamera:
-    def __init__(self, video_stream: Union[int, str] = 0):
+    def __init__(self, logger, video_stream: Union[int, str] = 0):
+        self.face_detector = dlib.get_frontal_face_detector()
+        self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
+        self.face_recognition_model = dlib.face_recognition_model_v1(
+            f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
+        )
+        self.logger = logger
         self.font = cv2.FONT_ITALIC
         # 通过opencv获取实时视频流
         self.video = cv2.VideoCapture(video_stream)
@@ -95,8 +93,6 @@ class VideoCamera:
     def __del__(self):
         self.video.release()
 
-        # 从 "features_all.csv" 读取录入人脸特征 / Get known faces from "features_all.csv"
-
     def get_face_database(self, cid):
         # print(cid)
         # course_sid = SC.query.filter(SC.c_id==cid).all()
@@ -116,12 +112,9 @@ class VideoCamera:
                     else:
                         features_someone_arr.append(float(one_feature))
                 self.features_known_list.append(features_someone_arr)
-            # print("Faces in Database：", len(self.features_known_list))
             return 1
         else:
             return 0
-
-        # 更新 FPS / Update FPS of video stream
 
     def update_fps(self):
         now = time.time()
@@ -129,27 +122,7 @@ class VideoCamera:
         self.fps = 1.0 / self.frame_time
         self.frame_start_time = now
 
-    # 计算两个128D向量间的欧式距离
-    @staticmethod
-    def return_euclidean_distance(feature_1, feature_2):
-        feature_1 = np.array(feature_1)
-        feature_2 = np.array(feature_2)
-        dist = np.sqrt(np.sum(np.square(feature_1 - feature_2)))
-        return dist
-
-    # 生成的 cv2 window 上面添加说明文字 / putText on cv2 window
     def draw_note(self, img_rd):
-        # 添加说明 (Add some statements
-        cv2.putText(
-            img_rd,
-            "One person at a time:  ",
-            (20, 40),
-            self.font,
-            1,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
         cv2.putText(
             img_rd,
             "FPS:   " + str(self.fps.__round__(2)),
@@ -160,11 +133,8 @@ class VideoCamera:
             1,
             cv2.LINE_AA,
         )
-        # cv2.putText(img_rd, "Q: Quit", (20, 450), self.font, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
 
-    def draw_name(self, img_rd):
-        # 在人脸框下面写人脸名字
-        # print(self.current_frame_name_list)
+    def draw_name(self, img_rd: np.ndarray) -> np.ndarray:
         font = ImageFont.truetype("simsun.ttc", 30)
         img = Image.fromarray(cv2.cvtColor(img_rd, cv2.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(img)
@@ -192,7 +162,7 @@ class VideoCamera:
                 )
 
                 # 2. 检测人脸 / Detect faces for frame X
-                faces = detector(img_rd, 0)
+                faces = self.face_detector(img_rd, 0)
 
                 # 3. 更新帧中的人脸数 / Update cnt for faces in frames
                 self.last_frame_faces_cnt = self.current_frame_face_cnt
@@ -213,9 +183,9 @@ class VideoCamera:
                                 self.current_frame_name_list = []
 
                                 for i in range(len(faces)):
-                                    shape = predictor(img_rd, faces[i])
+                                    shape = self.shape_predictor(img_rd, faces[i])
                                     self.current_frame_face_feature_list.append(
-                                        face_reco_model.compute_face_descriptor(img_rd, shape)
+                                        self.face_recognition_model.compute_face_descriptor(img_rd, shape)
                                     )
 
                                 # a. 遍历捕获到的图像中所有的人脸 / Traversal all the faces in the database
@@ -233,7 +203,7 @@ class VideoCamera:
                                     for i in range(len(self.features_known_list)):
                                         # 如果 person_X 数据不为空 / If the data of person_X is not empty
                                         if str(self.features_known_list[i][0]) != "0.0":
-                                            e_distance_tmp = self.return_euclidean_distance(
+                                            e_distance_tmp = return_euclidean_distance(
                                                 self.current_frame_face_feature_list[k],
                                                 self.features_known_list[i],
                                             )
@@ -310,9 +280,9 @@ class VideoCamera:
                             self.current_frame_name_list = []
 
                             for i in range(len(faces)):
-                                shape = predictor(img_rd, faces[i])
+                                shape = self.shape_predictor(img_rd, faces[i])
                                 self.current_frame_face_feature_list.append(
-                                    face_reco_model.compute_face_descriptor(img_rd, shape)
+                                    self.face_recognition_model.compute_face_descriptor(img_rd, shape)
                                 )
 
                             # a. 遍历捕获到的图像中所有的人脸
@@ -333,7 +303,7 @@ class VideoCamera:
                                     # 如果 person_X 数据不为空 / If data of person_X is not empty
                                     if str(self.features_known_list[i][0]) != "0.0":
                                         #  print("            >>> with person", str(i + 1), "the e distance: ", end='')
-                                        e_distance_tmp = self.return_euclidean_distance(
+                                        e_distance_tmp = return_euclidean_distance(
                                             self.current_frame_face_feature_list[k],
                                             self.features_known_list[i],
                                         )
@@ -409,7 +379,7 @@ def stream_video_frames(camera: VideoCamera, course_id: str):
 @teacher.route("/video_feed", methods=["GET", "POST"])
 def video_feed():
     return Response(
-        stream_video_frames(VideoCamera(), session["course"]),
+        stream_video_frames(VideoCamera(logger=app.logger), session["course"]),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
