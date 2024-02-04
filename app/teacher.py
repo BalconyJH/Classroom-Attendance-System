@@ -1,4 +1,5 @@
 import os
+import glob
 import time
 from io import BytesIO
 from typing import Union
@@ -674,17 +675,30 @@ def close_getFace():
     return redirect(url_for("teacher.select_sc"))
 
 
+def mark_student_as_deleted(sid):
+    """标记学生为已删除状态，并提交数据库更改。"""
+    student = Student.query.filter(Student.s_id == sid).first()
+    if student:
+        student.flag = 1  # 假设flag=1表示学生已被删除
+        db.session.commit()
+
+
+def delete_all_images_in_folder(uid):
+    folder_path = os.path.join(config.cache_path, "dataset", uid)
+    if os.path.exists(folder_path):
+        images = glob.glob(os.path.join(str(folder_path), "*.jpg"))
+        for image in images:
+            os.remove(image)
+        os.rmdir(folder_path)
+
+
 @teacher.route("/delete_face", methods=["POST"])
 def delete_face():
     sid = request.form.get("sid")
-    student = Student.query.filter(Student.s_id == sid).first()
-    student.flag = 1
-    db.session.commit()
-    os.remove("app/static/data/data_faces_from_camera/" + sid + "/1.jpg")
-    os.remove("app/static/data/data_faces_from_camera/" + sid + "/2.jpg")
-    os.remove("app/static/data/data_faces_from_camera/" + sid + "/3.jpg")
-    os.remove("app/static/data/data_faces_from_camera/" + sid + "/4.jpg")
-    os.remove("app/static/data/data_faces_from_camera/" + sid + "/5.jpg")
+    # 拆分的数据库逻辑
+    mark_student_as_deleted(sid)
+    # 删除文件的逻辑
+    delete_all_images_in_folder(sid)
     return redirect(url_for("teacher.select_sc"))
 
 
@@ -740,7 +754,7 @@ def upload_sc():
                     flash("有学号、课程号不存在")
             os.remove(sc_file.filename)
         else:
-            flash("只能识别'xlsx,xls'文件")
+            flash("只能识别xlsx,xls文件")
     else:
         flash("请选择文件")
     return redirect(url_for("teacher.course_management"))
