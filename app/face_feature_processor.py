@@ -4,7 +4,6 @@ from concurrent.futures import ProcessPoolExecutor
 import cv2
 import dlib
 import numpy as np
-
 from config import config
 
 
@@ -12,10 +11,10 @@ def extract_and_resize_face(image: np.ndarray, face_rect: dlib.rectangle, scale_
     """
     提取并放大图像中的人脸区域。
 
-    :param image: 原始图像，类型为 np.ndarray。
-    :param face_rect: 人脸的矩形框，类型为 dlib.rectangle。
-    :param scale_factor: 放大倍数，默认为 2。
-    :return: 放大后的人脸图像区域，类型为 np.ndarray。
+    :param image: 原始图像, 类型为 np.ndarray。
+    :param face_rect: 人脸的矩形框, 类型为 dlib.rectangle。
+    :param scale_factor: 放大倍数, 默认为 2。
+    :return: 放大后的人脸图像区域, 类型为 np.ndarray。
     """
     face_height = face_rect.bottom() - face_rect.top()
     face_width = face_rect.right() - face_rect.left()
@@ -42,7 +41,7 @@ def is_face_within_bounds(face_rect: dlib.rectangle, bounds: tuple[int, int]) ->
 
     :param face_rect: 人脸的矩形框。
     :param bounds: 允许的最大范围。
-    :return: 如果人脸在范围内，返回True；否则返回False。
+    :return: 如果人脸在范围内, 返回True; 否则返回False。
     """
     face_height = face_rect.bottom() - face_rect.top()
     face_width = face_rect.right() - face_rect.left()

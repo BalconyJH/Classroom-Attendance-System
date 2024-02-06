@@ -148,7 +148,7 @@
 
     <div class="welinfo" style="width: 100%;float: left">
         <span><img src="../../static/images/sun.png" alt="天气"/></span>
-        <b>{{ name }}，欢迎使用生物识别签到系统</b>
+        <b>{{ name }}, 欢迎使用生物识别签到系统</b>
     </div>
 
     <div class="welinfo" style="width: 100%;float: left">
@@ -170,7 +170,7 @@
                         <li><span>[{{ c.c_id }}]{{ c.c_name }} ({{ c.flag }})</span></li>
                     {% endfor %}
                 {% else %}
-                    <li><span>目前没有授课，您可以新建课程。</span></li>
+                    <li><span>目前没有授课, 您可以新建课程。</span></li>
                 {% endif %}
                 {#                <li><a class="ibtn" href="{{ url_for('teacher.course_management') }}">管理</a></li>#}
                 <li><a href="{{ url_for('teacher.course_management') }}" class="btn">

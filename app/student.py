@@ -3,14 +3,14 @@ import base64
 from pathlib import Path
 from datetime import datetime
 
+from config import config
 from sqlalchemy import extract
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
 
 from app import db, app
-from config import config
 
 from .face_feature_processor import FaceFeatureProcessor
-from .models import SC, Faces, Course, Student, Teacher, Attendance
+from .models import Faces, Course, Student, Teacher, Attendance, StudentCourse
 
 student = Blueprint("student", __name__, static_folder="static")
 
@@ -88,7 +88,6 @@ def pre_work_mkdir(path_photos_from_camera):
     if os.path.isdir(path_photos_from_camera):
         pass
     else:
-        print(path_photos_from_camera)
         os.mkdir(path_photos_from_camera)
 
 
@@ -148,18 +147,18 @@ def upload_faces():
         # 更新数据库
         update_database_with_features(features)
         # 设置成功消息并重定向
-        flash("提交成功！")
+        flash("提交成功! ")
         return redirect(url_for("student.home"))
     except Exception as e:
         app.logger.debug("Error:", e)
-        flash("提交不合格照片，请拍摄合格后再重试")
+        flash("提交不合格照片, 请拍摄合格后再重试")
         return redirect(url_for("student.home"))
 
 
 @student.route("/my_faces")
 def my_faces():
-    current_face_path = "app/static/data/data_faces_from_camera/" + session["id"] + "/"
-    face_path = "static/data/data_faces_from_camera/" + session["id"] + "/"
+    current_face_path = "app/static/caches/dataset/" + session["id"] + "/"
+    face_path = "static/caches/dataset/" + session["id"] + "/"
     photos_list = os.listdir(current_face_path)
     num = len(photos_list)
     paths = []
@@ -188,7 +187,9 @@ def my_records():
                 .all()
             )
             dict[course] = one_course_records
-            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            courses = (
+                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
+            )
             return render_template("student/my_records.html", dict=dict, courses=courses)
         elif cid != "" and time == "":
             course = Course.query.filter(Course.c_id == cid).first()
@@ -196,10 +197,14 @@ def my_records():
                 db.session.query(Attendance).filter(Attendance.s_id == sid, Attendance.c_id == cid).all()
             )
             dict[course] = one_course_records
-            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            courses = (
+                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
+            )
             return render_template("student/my_records.html", dict=dict, courses=courses)
         elif cid == "" and time != "":
-            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            courses = (
+                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
+            )
             for course in courses:
                 one_course_records = (
                     db.session.query(Attendance)
@@ -212,12 +217,14 @@ def my_records():
                     .all()
                 )
                 dict[course] = one_course_records
-            courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+            courses = (
+                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
+            )
             return render_template("student/my_records.html", dict=dict, courses=courses)
         else:  # cid =='' and time ==''
             pass
     # all_course_record = []
-    courses = db.session.query(Course).join(SC).filter(SC.s_id == sid).order_by("c_id").all()
+    courses = db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
     # print(courses)
     for course in courses:
         one_course_records = (
@@ -239,11 +246,11 @@ def choose_course():
         dict = {}
         if request.method == "POST":
             cid = request.form.get("cid")
-            sc = SC(s_id=sid, c_id=cid)
+            sc = StudentCourse(s_id=sid, c_id=cid)
             db.session.add(sc)
             db.session.commit()
 
-        now_have_courses_sc = SC.query.filter(SC.s_id == sid).all()
+        now_have_courses_sc = StudentCourse.query.filter(StudentCourse.s_id == sid).all()
         cids = []
         for sc in now_have_courses_sc:
             cids.append(sc.c_id)
@@ -252,8 +259,7 @@ def choose_course():
             teacher = Teacher.query.filter(Teacher.t_id == ncourse.t_id).first()
             dict[ncourse] = teacher
         return render_template("student/choose_course.html", dict=dict)
-    except Exception as e:
-        print("Error:", e)
+    except Exception:
         flash("出发错误操作")
         return redirect(url_for("student.home"))
 
@@ -265,10 +271,10 @@ def unchoose_course():
         dict = {}
         if request.method == "POST":
             cid = request.form.get("cid")
-            sc = SC.query.filter(SC.c_id == cid, SC.s_id == sid).first()
+            sc = StudentCourse.query.filter(StudentCourse.c_id == cid, StudentCourse.s_id == sid).first()
             db.session.delete(sc)
             db.session.commit()
-        now_have_courses_sc = SC.query.filter(SC.s_id == sid).all()
+        now_have_courses_sc = StudentCourse.query.filter(StudentCourse.s_id == sid).all()
         cids = []
         for sc in now_have_courses_sc:
             cids.append(sc.c_id)
@@ -277,8 +283,7 @@ def unchoose_course():
             teacher = Teacher.query.filter(Teacher.t_id == course.t_id).first()
             dict[course] = teacher
         return render_template("student/unchoose_course.html", dict=dict)
-    except Exception as e:
-        print("Error:", e)
+    except Exception:
         flash("出发错误操作")
         return redirect(url_for("student.home"))
 
@@ -293,7 +298,7 @@ def update_password():
             new = request.form.get("new")
             student.s_password = new
             db.session.commit()
-            flash("修改成功！")
+            flash("修改成功! ")
         else:
-            flash("旧密码错误，请重试")
+            flash("旧密码错误, 请重试")
     return render_template("student/update_password.html", student=student)

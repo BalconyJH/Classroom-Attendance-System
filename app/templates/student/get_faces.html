@@ -85,7 +85,7 @@
                 })
                 .catch(error => {
                     console.error("摄像头访问出错: ", error);
-                    alert("无法访问摄像头，请检查权限设置！");
+                    alert("无法访问摄像头, 请检查权限设置! ");
                 });
         }
 
@@ -106,20 +106,20 @@
                 let alertClass;
 
                 if (flag === 'false') {
-                    msg = '未检测到人脸或存在多张人脸，请重新拍摄';
+                    msg = '未检测到人脸或存在多张人脸, 请重新拍摄';
                     alertClass = 'alert-danger';
                 } else if (flag === 'big') {
-                    msg = '人脸范围过大，请调整距离后再拍摄';
+                    msg = '人脸范围过大, 请调整距离后再拍摄';
                     alertClass = 'alert-danger';
                 } else if (flag === 'error') {
-                    msg = '提交不合格照片，请确保5张照片都合格后再提交';
+                    msg = '提交不合格照片, 请确保5张照片都合格后再提交';
                     alertClass = 'alert-danger';
                 } else {
                     if (num === 5) {
-                        msg = '已成功拍摄5张照片，再次拍摄将覆盖最旧的照片，无误请点击提交';
+                        msg = '已成功拍摄5张照片, 再次拍摄将覆盖最旧的照片, 无误请点击提交';
                         alertClass = 'alert-warning';
                     } else {
-                        msg = '照片合格，已保存，请继续拍摄至5张';
+                        msg = '照片合格, 已保存, 请继续拍摄至5张';
                         alertClass = 'alert-success';
                     }
 

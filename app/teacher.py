@@ -203,13 +203,13 @@ class VideoCamera:
 
         参数:
             faces: 当前帧检测到的人脸列表。
-            img_rd: 当前帧图像，用于特征提取。
-            file: 出勤记录文件，用于记录识别的人脸。
+            img_rd: 当前帧图像, 用于特征提取。
+            file: 出勤记录文件, 用于记录识别的人脸。
 
         处理流程:
-            1. 对每个检测到的人脸，提取特征。
+            1. 对每个检测到的人脸, 提取特征。
             2. 将提取的特征与已知特征库进行匹配。
-            3. 处理匹配结果，更新人脸识别信息。
+            3. 处理匹配结果, 更新人脸识别信息。
         """
         for face in faces:
             # 提取人脸特征
@@ -268,7 +268,7 @@ def stream_video_frames(camera: VideoCamera, course_id: str):
     生成视频流的帧数据
     :param camera: VideoCamera对象
     :param course_id: 课程id
-    :return: 生成器，每次返回一帧的数据
+    :return: 生成器, 每次返回一帧的数据
     """
     while True:
         with app.app_context():
@@ -303,7 +303,7 @@ def update_course_times(cid: str) -> Union[str, None]:
 
 
 def initialize_attendance_records(cid: str, now: str) -> None:
-    """初始化考勤记录，标记所有学生为未签到"""
+    """初始化考勤记录, 标记所有学生为未签到"""
     the_course_students = StudentCourse.query.filter_by(c_id=cid)
     all_students_attend = [Attendance(s_id=sc.s_id, c_id=cid, time=now, result="缺勤") for sc in the_course_students]
     db.session.add_all(all_students_attend)
@@ -594,9 +594,9 @@ def update_password():
             new = request.form.get("new")
             teacher.t_password = new
             db.session.commit()
-            flash("修改成功！")
+            flash("修改成功! ")
         else:
-            flash("旧密码错误，请重试")
+            flash("旧密码错误, 请重试")
     return render_template("teacher/update_password.html", teacher=teacher)
 
 
@@ -676,7 +676,7 @@ def close_getFace():
 
 
 def mark_student_as_deleted(sid):
-    """标记学生为已删除状态，并提交数据库更改。"""
+    """标记学生为已删除状态, 并提交数据库更改。"""
     student = Student.query.filter(Student.s_id == sid).first()
     if student:
         student.flag = 1  # 假设flag=1表示学生已被删除
@@ -778,8 +778,7 @@ def select_all_teacher():
                 Course.query.filter(Course.t_id == id).delete()
             db.session.delete(teacher)
             db.session.commit()
-        except Exception as e:
-            print("Error:", e)
+        except Exception:
             flash("出发错误操作")
             return redirect(url_for("teacher.home"))
     teachers = Teacher.query.all()
@@ -804,8 +803,7 @@ def select_all_student():
                 StudentCourse.query.filter(StudentCourse.s_id == id).delete()
             db.session.delete(student)
             db.session.commit()
-        except Exception as e:
-            print("Error:", e)
+        except Exception:
             flash("出发错误操作")
             return redirect(url_for("teacher.home"))
     students = Student.query.all()
@@ -903,7 +901,6 @@ def download():
     engine = create_engine("mysql+pymysql://root:990722@localhost:3306/test?charset=utf8")
     # 写一条sql
     sql = "select s_id 学号,result 考勤结果 from attendance where c_id='" + str(cid) + "' and time='" + str(time) + "'"
-    print(sql)
     # 建立dataframe
     df = pd.read_sql_query(sql, engine)
     out = BytesIO()

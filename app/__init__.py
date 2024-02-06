@@ -1,10 +1,9 @@
 from datetime import datetime
 from logging.config import dictConfig
 
+from config import config
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, flash, request, session, url_for, redirect, render_template
-
-from config import config
 
 config_dict = config.dict()
 
@@ -18,7 +17,7 @@ db = SQLAlchemy(app)
 logger = app.logger
 from app import views, models  # noqa E402
 
-from .models import Student, Teacher  # noqa E402
+from .models import Student, Teacher  # E402
 
 # handler = logging.StreamHandler()
 # formatter = logging.Formatter(
@@ -78,9 +77,9 @@ def login():
                     db.session.commit()
                     return redirect(url_for("student.home"))
                 else:
-                    flash("密码错误，请重试")
+                    flash("密码错误, 请重试")
             else:
-                flash("学号错误，请重试")
+                flash("学号错误, 请重试")
         elif len(username) == 8:
             teachers = Teacher.query.filter(Teacher.t_id == username).first()
             if teachers:
@@ -99,11 +98,11 @@ def login():
                     db.session.commit()
                     return redirect(url_for("teacher.home"))
                 else:
-                    flash("密码错误，请重试")
+                    flash("密码错误, 请重试")
             else:
-                flash("工号错误，请重试")
+                flash("工号错误, 请重试")
         else:
-            flash("账号不合法，请用学号/工号登录")
+            flash("账号不合法, 请用学号/工号登录")
     return render_template("login.html")
 
 
