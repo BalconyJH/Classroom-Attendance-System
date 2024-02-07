@@ -36,7 +36,7 @@ exclude = ["app/static/**", "app/tempplates/**"]
 [tool.ruff.format]
 line-ending = "lf"
 
-[tool.ruff.flake8-pytest-style]
+[tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
 mark-parentheses = false
 
