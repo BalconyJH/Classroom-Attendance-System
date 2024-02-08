@@ -166,8 +166,8 @@
         <div class="welinfo" style="width: 40%;float:left;">
             <ul class="infolist">
                 {% if records %}
-                    {% for a,c in records.items() %}
-                        <li><span>"{{ c[0].c_name }}"   {{ a.time }}考勤中{{ a.result }}</span></li>
+                    {% for attendance, course in records.items() %}
+                        <li><span>"{{ course.c_name }}"   {{ attendance.time }}考勤中{{ attendance.result }}</span></li>
                     {% endfor %}
                     <li><a href="{{ url_for('student.my_records') }}">更多...</a></li>
                 {% else %}
@@ -177,11 +177,13 @@
 
         </div>
 
-        {% if num['qq'] or num['qj'] or num['yqd'] or num['cd'] %}
-            <div style="width:50%;float: left;height: 200px" id="container">
-                {#                <p>#}
-                {#                 <canvas id="container" width="290" height="200"> </canvas>#}
-                {#                </p>#}
+        {% if num['absent'] == 0 and num['leave'] == 0 and num['checked'] == 0 and num['late'] == 0 %}
+            <div style="text-align: center; width: 50%;float:right;">
+                <p>当前月份无数据</p>
+            </div>
+        {% else %}
+            <div style="width:50%; float: left; height: 200px" id="container">
+                <!-- ECharts 绘图容器 -->
             </div>
         {% endif %}
 
@@ -304,10 +306,10 @@
                     show: false
                 },
                 data: [
-                    {value: {{ num['qj'] }}, name: '请假'},
-                    {value: {{ num['yqd'] }}, name: '已签到'},
-                    {value: {{ num['cd'] }}, name: '迟到'},
-                    {value: {{ num['qq'] }}, name: '缺勤'}
+                    {value: {{ num['leave'] }}, name: '请假'},
+                    {value: {{ num['checked'] }}, name: '已签到'},
+                    {value: {{ num['late'] }}, name: '迟到'},
+                    {value: {{ num['absent'] }}, name: '缺勤'}
                 ],
             }
         ]

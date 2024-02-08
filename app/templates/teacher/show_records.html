@@ -49,13 +49,13 @@
     <br>
     <div align="center">
         筛选:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button onclick="yqd()" class="btn btn-primary yqd">已签到</button>
+        <button onclick="checked()" class="btn btn-primary checked">已签到</button>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button onclick="cd()" class="btn btn-primary cd">迟到</button>
+        <button onclick="late()" class="btn btn-primary late">迟到</button>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button onclick="qj()" class="btn btn-primary qj">请假</button>
+        <button onclick="leave()" class="btn btn-primary leave">请假</button>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <button onclick="qq()" class="btn btn-primary qq">缺勤</button>
+        <button onclick="absent()" class="btn btn-primary absent">缺勤</button>
     </div>
     <br><br>
 
@@ -176,28 +176,28 @@
     </div>
 </main>
 <script>
-    function qq() {
+    function absent() {
         $("#已签到").hide();
         $("#迟到").hide();
         $("#请假").hide();
         $("#缺勤").show();
     }
 
-    function yqd() {
+    function checked() {
         $("#缺勤").hide();
         $("#迟到").hide();
         $("#请假").hide();
         $("#已签到").show();
     }
 
-    function qj() {
+    function leave() {
         $("#已签到").hide();
         $("#迟到").hide();
         $("#缺勤").hide();
         $("#请假").show();
     }
 
-    function cd() {
+    function late() {
         $("#已签到").hide();
         $("#缺勤").hide();
         $("#请假").hide();
