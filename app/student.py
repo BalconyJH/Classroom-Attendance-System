@@ -15,64 +15,56 @@ from .models import Faces, Course, Student, Teacher, Attendance, StudentCourse
 student = Blueprint("student", __name__, static_folder="static")
 
 
+def get_student_by_id(student_id: str) -> Student:
+    """根据学生ID获取学生实例"""
+    return Student.query.get(student_id)
+
+
+def get_recent_attendances(student_id: str, limit: int = 5) -> list[Attendance]:
+    """获取最近的考勤记录"""
+    return Attendance.query.filter(Attendance.s_id == student_id).order_by(Attendance.time.desc()).limit(limit).all()
+
+
+def get_attendance_records(student_id: str, limit: int = 5) -> dict[Attendance, Course]:
+    """获取考勤记录及对应的课程"""
+    attendances = get_recent_attendances(student_id, limit)
+    records = {}
+    for attendance in attendances:
+        course = Course.query.get(attendance.c_id)
+        records[attendance] = course
+    return records
+
+
+def count_attendance_by_result(student_id: str, month: int, year: int, result: str) -> int:
+    """根据结果计算考勤次数"""
+    return Attendance.query.filter(
+        Attendance.s_id == student_id,
+        extract("month", Attendance.time) == month,
+        extract("year", Attendance.time) == year,
+        Attendance.result == result,
+    ).count()
+
+
+def get_monthly_attendance_summary(student_id: str, month: int, year: int) -> dict[str, int]:
+    """获取每月的考勤摘要"""
+    return {
+        "leave": count_attendance_by_result(student_id, month, year, "请假"),
+        "late": count_attendance_by_result(student_id, month, year, "迟到"),
+        "absent": count_attendance_by_result(student_id, month, year, "缺勤"),
+        "checked": count_attendance_by_result(student_id, month, year, "已签到"),
+    }
+
+
 @student.route("/home")
 def home():
-    records = {}
-    student = Student.query.filter(Student.s_id == session["id"]).first()
-    session["flag"] = student.flag
-    attendances = (
-        db.session.query(Attendance)
-        .filter(Attendance.s_id == session["id"])
-        .order_by(Attendance.time.desc())
-        .limit(5)
-        .all()
-    )
-    for i in attendances:
-        course = db.session.query(Course).filter(Course.c_id == i.c_id).all()
-        records[i] = course
-    year = datetime.now().year
+    student_id = session["id"]
+    student_instance = get_student_by_id(student_id)
+    session["flag"] = student_instance.flag
+    records = get_attendance_records(student_id)
     month = datetime.now().month
-    qj = (
-        db.session.query(Attendance)
-        .filter(
-            Attendance.s_id == session["id"],
-            extract("month", Attendance.time) == month,
-            extract("year", Attendance.time) == year,
-            Attendance.result == "请假",
-        )
-        .count()
-    )
-    cd = (
-        db.session.query(Attendance)
-        .filter(
-            Attendance.s_id == session["id"],
-            extract("month", Attendance.time) == month,
-            extract("year", Attendance.time) == year,
-            Attendance.result == "迟到",
-        )
-        .count()
-    )
-    qq = (
-        db.session.query(Attendance)
-        .filter(
-            Attendance.s_id == session["id"],
-            extract("month", Attendance.time) == month,
-            extract("year", Attendance.time) == year,
-            Attendance.result == "缺勤",
-        )
-        .count()
-    )
-    yqd = (
-        db.session.query(Attendance)
-        .filter(
-            Attendance.s_id == session["id"],
-            extract("month", Attendance.time) == month,
-            extract("year", Attendance.time) == year,
-            Attendance.result == "已签到",
-        )
-        .count()
-    )
-    num = {"qj": qj, "cd": cd, "qq": qq, "yqd": yqd}
+    year = datetime.now().year
+    num = get_monthly_attendance_summary(student_id, month, year)
+
     return render_template(
         "student/student_home.html",
         flag=session["flag"],
