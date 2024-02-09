@@ -3,10 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>学生签到系统</title>
+    <style>
+        .no-images {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
+{% if face_paths %}
     {% for path in face_paths %}
-        <img src="{{ path }}"/>
+        <img src="{{ path }}" alt="学生照片"/>
     {% endfor %}
+{% else %}
+    <div class="no-images">无图片</div>
+{% endif %}
 </body>
 </html>
