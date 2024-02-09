@@ -76,11 +76,9 @@ def home():
 
 
 def pre_work_mkdir(path_photos_from_camera):
-    # 新建文件夹 / Create folders to save faces images and csv
-    if os.path.isdir(path_photos_from_camera):
-        pass
-    else:
-        os.mkdir(path_photos_from_camera)
+    path = Path(path_photos_from_camera)
+    if not path.is_dir():
+        path.mkdir()
 
 
 @student.route("/get_faces", methods=["GET", "POST"])
@@ -149,14 +147,15 @@ def upload_faces():
 
 @student.route("/my_faces")
 def my_faces():
-    current_face_path = "app/static/caches/dataset/" + session["id"] + "/"
-    face_path = "static/caches/dataset/" + session["id"] + "/"
-    photos_list = os.listdir(current_face_path)
+    current_face_path = Path(config.cache_path) / "dataset" / session["id"]
+
+    face_path = Path("static/caches/dataset") / session["id"]
+
+    photos_list = list(current_face_path.glob("*.jpg"))
     num = len(photos_list)
-    paths = []
-    for i in range(num):
-        path = face_path + str(i + 1) + ".jpg"
-        paths.append(path)
+
+    paths = [str(face_path / f"{i+1}.jpg") for i in range(num)]
+
     return render_template("student/my_faces.html", face_paths=paths)
 
 
@@ -276,7 +275,7 @@ def unchoose_course():
             dict[course] = teacher
         return render_template("student/unchoose_course.html", dict=dict)
     except Exception:
-        flash("出发错误操作")
+        flash("未知错误")
         return redirect(url_for("student.home"))
 
 
