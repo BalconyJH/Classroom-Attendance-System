@@ -1,18 +1,29 @@
-import os
 import base64
-from pathlib import Path
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
-from config import config
-from sqlalchemy import extract
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
+from sqlalchemy import extract
 
 from app import db, app
-
+from config import config
 from .face_feature_processor import FaceFeatureProcessor
 from .models import Faces, Course, Student, Teacher, Attendance, StudentCourse
 
 student = Blueprint("student", __name__, static_folder="static")
+
+
+def save_image(data: bytes, path: Path) -> None:
+    """
+    保存图片
+    :param data: 图片数据
+    :param path: 保存路径
+    :return: None
+    """
+    with open(path, "wb") as file:
+        file.write(data)
 
 
 def get_student_by_id(student_id: str) -> Student:
@@ -84,8 +95,7 @@ def pre_work_mkdir(path_photos_from_camera):
 @student.route("/get_faces", methods=["GET", "POST"])
 def get_faces():
     if request.method == "POST":
-        imgdata = request.form.get("face")
-        imgdata = base64.b64decode(imgdata)
+        imgdata = base64.b64decode(request.form.get("face"))
         path = Path(config.cache_path / "dataset" / session["id"])
         face_register = FaceFeatureProcessor(app.logger)
         if session["num"] == 0:
@@ -94,8 +104,7 @@ def get_faces():
             session["num"] = 0
         session["num"] += 1
         current_face_path = path / f"{session['num']}.jpg"
-        with open(current_face_path, "wb") as f:
-            f.write(imgdata)
+        save_image(imgdata, current_face_path)
         flag = face_register.process_single_face_image(str(current_face_path))
         if flag != "right":
             session["num"] -= 1
@@ -154,80 +163,53 @@ def my_faces():
     photos_list = list(current_face_path.glob("*.jpg"))
     num = len(photos_list)
 
-    paths = [str(face_path / f"{i+1}.jpg") for i in range(num)]
+    paths = [str(face_path / f"{i + 1}.jpg") for i in range(num)]
 
     return render_template("student/my_faces.html", face_paths=paths)
+
+
+def get_courses_by_student_id(s_id: str) -> list[Course]:
+    """根据学生ID获取其所有课程。"""
+    return (
+        Course.query.join(StudentCourse, Course.c_id == StudentCourse.c_id)
+        .filter(StudentCourse.s_id == s_id)
+        .order_by(Course.c_id)
+        .all()
+    )
+
+
+def get_records_by_course_and_time(
+    s_id: str, c_id: Optional[str] = None, time: Optional[str] = None
+) -> dict[Course, list[Attendance]]:
+    """根据课程ID和时间获取指定学生的考勤记录。"""
+    records_dict = {}
+    courses = (
+        Course.query.join(StudentCourse, Course.c_id == StudentCourse.c_id).filter(StudentCourse.s_id == s_id)
+        if not c_id
+        else [Course.query.filter_by(c_id=c_id).first()]
+    )
+
+    for course in courses:
+        query = Attendance.query.filter_by(s_id=s_id, c_id=course.c_id)
+        if time:
+            query = query.filter(Attendance.time.like(f"{time}%"))
+        records = query.all()
+        records_dict[course] = records
+
+    return records_dict
 
 
 @student.route("/my_records", methods=["GET", "POST"])
 def my_records():
     sid = session["id"]
-    dict = {}
     if request.method == "POST":
-        cid = str(request.form.get("course_id"))
-        time = str(request.form.get("time"))
-        if cid != "" and time != "":
-            course = Course.query.filter(Course.c_id == cid).first()
-            one_course_records = (
-                db.session.query(Attendance)
-                .filter(
-                    Attendance.s_id == sid,
-                    Attendance.c_id == cid,
-                    Attendance.time.like(time + "%"),
-                )
-                .all()
-            )
-            dict[course] = one_course_records
-            courses = (
-                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
-            )
-            return render_template("student/my_records.html", dict=dict, courses=courses)
-        elif cid != "" and time == "":
-            course = Course.query.filter(Course.c_id == cid).first()
-            one_course_records = (
-                db.session.query(Attendance).filter(Attendance.s_id == sid, Attendance.c_id == cid).all()
-            )
-            dict[course] = one_course_records
-            courses = (
-                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
-            )
-            return render_template("student/my_records.html", dict=dict, courses=courses)
-        elif cid == "" and time != "":
-            courses = (
-                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
-            )
-            for course in courses:
-                one_course_records = (
-                    db.session.query(Attendance)
-                    .filter(
-                        Attendance.s_id == sid,
-                        Attendance.c_id == course.c_id,
-                        Attendance.time.like(time + "%"),
-                    )
-                    .order_by("c_id")
-                    .all()
-                )
-                dict[course] = one_course_records
-            courses = (
-                db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
-            )
-            return render_template("student/my_records.html", dict=dict, courses=courses)
-        else:  # cid =='' and time ==''
-            pass
-    # all_course_record = []
-    courses = db.session.query(Course).join(StudentCourse).filter(StudentCourse.s_id == sid).order_by("c_id").all()
-    # print(courses)
-    for course in courses:
-        one_course_records = (
-            db.session.query(Attendance)
-            .filter(Attendance.s_id == sid, Attendance.c_id == course.c_id)
-            .order_by("c_id")
-            .all()
-        )
-        # all_course_record.append(one_course_records)
-        dict[course] = one_course_records
-    # print(dict)
-    return render_template("student/my_records.html", dict=dict, courses=courses)
+        cid = str(request.form.get("course_id", ""))
+        time = str(request.form.get("time", ""))
+        records_dict = get_records_by_course_and_time(sid, cid if cid else None, time if time else None)
+    else:
+        records_dict = get_records_by_course_and_time(sid)
+    courses = get_courses_by_student_id(sid)
+    return render_template("student/my_records.html", dict=records_dict, courses=courses)
 
 
 @student.route("/choose_course", methods=["GET", "POST"])
