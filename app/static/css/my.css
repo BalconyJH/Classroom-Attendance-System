@@ -43,19 +43,19 @@
             border: none;
         }
 
-        .yqd{
+        .checked{
             background: green;
             border: none;
         }
-        .qq{
+        .absent{
             background: red;
             border: none;
         }
-        .qj{
+        .leave{
             background: rebeccapurple;
             border: none;
         }
-        .cd{
+        .late{
             background: sandybrown;
             border: none;
         }

@@ -32,7 +32,7 @@
             </tr>
         </thead>
         {% for course,teacher in dict.items() %}
-            <form action="{{url_for('student.unchoose_course') }}" method="post">
+            <form action="{{url_for('student.drop_course') }}" method="post">
                 <tr>
                     <td><input type="text" name="cid" value="{{ course.c_id }}" readonly="readonly"></td>
                     <td><input type="text" name="cname" value="{{ course.c_name }}" readonly="readonly"></td>

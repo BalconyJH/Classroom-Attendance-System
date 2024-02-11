@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Optional
 
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
+from flask import FlaskException
 from sqlalchemy import extract
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import db, app
 from config import config
@@ -148,7 +150,7 @@ def upload_faces():
         # 设置成功消息并重定向
         flash("提交成功! ")
         return redirect(url_for("student.home"))
-    except Exception as e:
+    except FlaskException as e:
         app.logger.debug("Error:", e)
         flash("提交不合格照片, 请拍摄合格后再重试")
         return redirect(url_for("student.home"))
@@ -202,76 +204,133 @@ def get_records_by_course_and_time(
 @student.route("/my_records", methods=["GET", "POST"])
 def my_records():
     sid = session["id"]
+    courses = get_courses_by_student_id(sid)
     if request.method == "POST":
         cid = str(request.form.get("course_id", ""))
         time = str(request.form.get("time", ""))
         records_dict = get_records_by_course_and_time(sid, cid if cid else None, time if time else None)
     else:
         records_dict = get_records_by_course_and_time(sid)
-    courses = get_courses_by_student_id(sid)
     return render_template("student/my_records.html", dict=records_dict, courses=courses)
+
+
+def add_student_course(s_id: str, c_id: str) -> bool:
+    """添加学生选课记录"""
+    try:
+        sc = StudentCourse(s_id=s_id, c_id=c_id)
+        db.session.add(sc)
+        db.session.commit()
+        return True
+    except SQLAlchemyError:
+        db.session.rollback()
+        return False
+
+
+def get_student_courses(s_id: str) -> list[StudentCourse]:
+    """获取学生已选课程"""
+    return StudentCourse.query.filter_by(s_id=s_id).all()
+
+
+def get_available_courses(s_id: str) -> dict[Course, Teacher]:
+    """获取学生未选的可选课程及其教师信息"""
+    result_dict = {}
+    # 获取学生已选的所有课程ID
+    enrolled_course_ids = [sc.c_id for sc in get_student_courses(s_id)]
+    # 查询未选且可选的课程
+    available_courses = Course.query.filter(Course.c_id.notin_(enrolled_course_ids), Course.flag == "可选课").all()
+    for course in available_courses:
+        teacher = Teacher.query.filter_by(t_id=course.t_id).first()
+        if teacher:
+            result_dict[course] = teacher
+    return result_dict
 
 
 @student.route("/choose_course", methods=["GET", "POST"])
 def choose_course():
     try:
         sid = session["id"]
-        dict = {}
         if request.method == "POST":
             cid = request.form.get("cid")
-            sc = StudentCourse(s_id=sid, c_id=cid)
-            db.session.add(sc)
-            db.session.commit()
+            if not add_student_course(sid, cid):
+                flash("选课失败, 请重试")
+                return redirect(url_for("student.choose_course"))
 
-        now_have_courses_sc = StudentCourse.query.filter(StudentCourse.s_id == sid).all()
-        cids = []
-        for sc in now_have_courses_sc:
-            cids.append(sc.c_id)
-        not_hava_courses = Course.query.filter(Course.c_id.notin_(cids), Course.flag == "可选课").all()
-        for ncourse in not_hava_courses:
-            teacher = Teacher.query.filter(Teacher.t_id == ncourse.t_id).first()
-            dict[ncourse] = teacher
-        return render_template("student/choose_course.html", dict=dict)
-    except Exception:
-        flash("出发错误操作")
+        available_courses = get_available_courses(sid)
+        return render_template("student/choose_course.html", dict=available_courses)
+    except FlaskException:
+        flash("未知错误操作")
         return redirect(url_for("student.home"))
 
 
-@student.route("/unchoose_course", methods=["GET", "POST"])
-def unchoose_course():
+def delete_student_course(sid: str, cid: str) -> None:
+    """删除学生的选课记录"""
+    sc = StudentCourse.query.filter_by(c_id=cid, s_id=sid).first()
+    if sc:
+        db.session.delete(sc)
+        db.session.commit()
+
+
+def get_selectable_courses_and_teachers(sid: str) -> dict[Course, Teacher]:
+    """获取学生可退选的课程及其任课教师"""
+    selected_courses = get_student_courses(sid)
+    cids = [sc.c_id for sc in selected_courses]
+    courses_and_teachers = {}
+    if cids:
+        selectable_courses = Course.query.filter(Course.c_id.in_(cids), Course.flag == "可选课").all()
+        for course in selectable_courses:
+            teacher = Teacher.query.filter_by(t_id=course.t_id).first()
+            courses_and_teachers[course] = teacher
+    return courses_and_teachers
+
+
+@student.route("/drop_course", methods=["GET", "POST"])
+def drop_course():
     try:
         sid = session["id"]
-        dict = {}
         if request.method == "POST":
             cid = request.form.get("cid")
-            sc = StudentCourse.query.filter(StudentCourse.c_id == cid, StudentCourse.s_id == sid).first()
-            db.session.delete(sc)
-            db.session.commit()
-        now_have_courses_sc = StudentCourse.query.filter(StudentCourse.s_id == sid).all()
-        cids = []
-        for sc in now_have_courses_sc:
-            cids.append(sc.c_id)
-        hava_courses = Course.query.filter(Course.c_id.in_(cids), Course.flag == "可选课").all()
-        for course in hava_courses:
-            teacher = Teacher.query.filter(Teacher.t_id == course.t_id).first()
-            dict[course] = teacher
-        return render_template("student/unchoose_course.html", dict=dict)
-    except Exception:
+            delete_student_course(sid, cid)  # 删除选课记录
+
+        selectable_courses = get_selectable_courses_and_teachers(sid)  # 获取可选课程及其教师
+
+        return render_template("student/drop_course.html", dict=selectable_courses)
+    except FlaskException:
         flash("未知错误")
         return redirect(url_for("student.home"))
 
 
+def update_user_password(user_type: str, user_id: str, old_password: str, new_password: str) -> bool:
+    """更新用户密码"""
+    if user_type == "student":
+        user = Student.query.filter_by(s_id=user_id).first()
+    elif user_type == "teacher":
+        user = Teacher.query.filter_by(t_id=user_id).first()
+    else:
+        flash("未知用户类型")
+        return False
+
+    if user is None:
+        flash("用户不存在")
+        return False
+
+    if user.s_password == old_password or user.t_password == old_password:
+        user.s_password = new_password if user_type == "student" else None
+        user.t_password = new_password if user_type == "teacher" else None
+        db.session.commit()
+        flash("密码修改成功!")
+        return True
+    else:
+        flash("旧密码错误, 请重试")
+        return False
+
+
 @student.route("/update_password", methods=["GET", "POST"])
 def update_password():
-    sid = session["id"]
-    student = Student.query.filter(Student.s_id == sid).first()
+    user_id = session["id"]
     if request.method == "POST":
         old = request.form.get("old")
-        if old == student.s_password:
-            new = request.form.get("new")
-            student.s_password = new
-            db.session.commit()
-            flash("修改成功! ")
-        else:
-            flash("旧密码错误, 请重试")
-    return render_template("student/update_password.html", student=student)
+        new = request.form.get("new")
+        update_user_password("student", user_id, old, new)
+    return render_template(
+        "student/update_password.html", student=Student.query.filter(Student.s_id == user_id).first()
+    )

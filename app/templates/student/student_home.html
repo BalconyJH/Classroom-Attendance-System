@@ -116,7 +116,7 @@
                         {#					<li class="divider"></li>#}
                         <li><a href="{{ url_for('student.choose_course') }}">选课</a></li>
                         <li class="divider"></li>
-                        <li><a href="{{ url_for('student.unchoose_course') }}">退课</a></li>
+                        <li><a href="{{ url_for('student.drop_course') }}">退课</a></li>
                         <li class="divider"></li>
                         <li><a href="{{ url_for('student.my_records') }}">考勤记录</a></li>
                     </ul>
@@ -209,7 +209,7 @@
                         <polyline points="8 1 12 5 8 9"></polyline>
                     </svg>
                 </a>
-                <a href="{{ url_for('student.unchoose_course') }}" class="btn" style="margin-left: 10px;">
+                <a href="{{ url_for('student.drop_course') }}" class="btn" style="margin-left: 10px;">
                     <span>退课</span>
                     <svg width="20px" height="10px" viewBox="0 0 13 10">
                         <path d="M1,5 L11,5"></path>
