@@ -58,6 +58,8 @@ executionEnvironments = [
 typeCheckingMode = "basic"
 reportShadowedImports = false
 disableBytesTypePromotions = true
+
+[tool.pdm]
 distribution = false
 
 [tool.pytest.ini_options]
