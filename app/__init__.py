@@ -1,11 +1,26 @@
 from datetime import datetime
-from logging.config import dictConfig
+
+import sentry_sdk
 
 from config import config
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, flash, request, session, url_for, redirect, render_template
 
 config_dict = config.dict()
+
+
+sentry_sdk.init(
+    dsn=config_dict["sentry_dsn"].get_secret_value(),
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+    enable_tracing=config_dict["enable_tracing"],
+)
+
 
 app = Flask(__name__)
 app.config.update(
@@ -14,46 +29,39 @@ app.config.update(
     SQLALCHEMY_TRACK_MODIFICATIONS=config_dict["sqlalchemy_track_modifications"],
 )
 db = SQLAlchemy(app)
-logger = app.logger
-from app import views, models  # noqa E402
+from app import views  # noqa E402
 
-from .models import Student, Teacher  # E402
+from database.models import Student, Teacher  # E402
 
-# handler = logging.StreamHandler()
-# formatter = logging.Formatter(
-#     '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-#     datefmt='%d/%b/%Y %H:%M:%S'
-# )
-# handler.setFormatter(formatter)
-# if app.logger.hasHandlers():
-#     app.logger.handlers.clear()
-# app.logger.addHandler(handler)
-dictConfig(
-    {
-        "version": 1,
-        "formatters": {
-            "default": {
-                "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
-            }
-        },
-        "handlers": {
-            "wsgi": {
-                "class": "logging.StreamHandler",
-                "stream": "ext://flask.logging.wsgi_errors_stream",
-                "formatter": "default",
-            }
-        },
-        "root": {"level": "INFO", "handlers": ["wsgi"]},
-    }
-)
+
+async def login_user(user_type: str, username: str, password: str, time: str) -> bool:
+    user_model = Student if user_type == "student" else Teacher
+    user_id_field = "s_id" if user_type == "student" else "t_id"
+    password_field = "s_password" if user_type == "student" else "t_password"
+
+    user = user_model.query.filter_by(**{user_id_field: username}).first()
+    if user and getattr(user, password_field) == password:
+        session_data = {
+            "username": username,
+            "id": getattr(user, user_id_field),
+            "name": user.s_name if user_type == "student" else user.t_name,
+            "role": user_type,
+            "time": getattr(user, "before", None) or time,
+        }
+        if user_type == "student":
+            session_data.update({"num": 0, "flag": user.flag})  # 假设这些是学生特有的会话信息
+        else:
+            session_data["attend"] = []  # 假设这是教师特有的会话信息
+
+        session.update(session_data)
+        setattr(user, "before", time)
+        db.session.commit()
+        return True
+    return False
 
 
 @app.route("/", methods=["GET", "POST"])
-def login():
-    app.logger.debug("A value for debugging")
-    app.logger.info("Info level log")
-    app.logger.warning("A warning occurred (%d apples)", 42)
-    app.logger.error("An error occurred")
+async def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")

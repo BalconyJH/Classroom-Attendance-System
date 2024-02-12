@@ -14,16 +14,20 @@ class Config(BaseSettings):
     language_type: str = "zh_CN"
 
     # Flask specific settings
-    secret_key: SecretStr = "123456"  # 使用 SecretStr 以保护敏感信息
+    secret_key: SecretStr
     jinja_env_auto_reload: bool = True
     send_file_max_age_default: timedelta = timedelta(seconds=1)
 
     # SQLAlchemy settings
-    sqlalchemy_database_uri: SecretStr = "mysql+pymysql://root:070499@localhost:3306/test?charset=utf8"
+    sqlalchemy_database_uri: SecretStr
     sqlalchemy_track_modifications: bool = True
 
+    # sentry settings
+    sentry_dsn: SecretStr
+    enable_tracing: bool = False
+
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         extra = "allow"
 
 
