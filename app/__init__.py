@@ -63,54 +63,17 @@ async def login_user(user_type: str, username: str, password: str, time: str) ->
 @app.route("/", methods=["GET", "POST"])
 async def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
         time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if len(username) == 13:
-            students = Student.query.filter(Student.s_id == username).first()
-            if students:
-                if students.s_password == password:
-                    flash("登陆成功")
-                    session["username"] = username
-                    session["id"] = students.s_id
-                    session["num"] = 0  # students.num
-                    session["name"] = students.s_name
-                    session["role"] = "student"
-                    session["flag"] = students.flag
-                    if students.before:
-                        session["time"] = students.before
-                    else:
-                        session["time"] = time
-                    students.before = time
-                    db.session.commit()
-                    return redirect(url_for("student.home"))
-                else:
-                    flash("密码错误, 请重试")
-            else:
-                flash("学号错误, 请重试")
-        elif len(username) == 8:
-            teachers = Teacher.query.filter(Teacher.t_id == username).first()
-            if teachers:
-                if teachers.t_password == password:
-                    flash("登陆成功")
-                    session["username"] = username
-                    session["id"] = teachers.t_id
-                    session["name"] = teachers.t_name
-                    session["role"] = "teacher"
-                    session["attend"] = []
-                    if teachers.before:
-                        session["time"] = teachers.before
-                    else:
-                        session["time"] = time
-                    teachers.before = time
-                    db.session.commit()
-                    return redirect(url_for("teacher.home"))
-                else:
-                    flash("密码错误, 请重试")
-            else:
-                flash("工号错误, 请重试")
+
+        user_type = "student" if len(username) == 13 else "teacher" if len(username) == 8 else None
+        if user_type and await login_user(user_type, username, password, time):
+            flash("登录成功")
+            return redirect(url_for(f"{session['role']}.home"))
         else:
-            flash("账号不合法, 请用学号/工号登录")
+            flash("用户名或密码错误, 请重试")
+
     return render_template("login.html")
 
 
