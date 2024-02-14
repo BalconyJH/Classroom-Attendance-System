@@ -1,7 +1,7 @@
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -25,10 +25,18 @@ class Config(BaseSettings):
     # sentry settings
     sentry_dsn: SecretStr
     enable_tracing: bool = False
+    sentry_environment: str = "production"
 
     class Config:
         env_file = "../.env"
         extra = "allow"
+
+    @model_validator(mode="after")
+    def set_sentry_env(self):
+        if self.log_level == "DEBUG":
+            self.sentry_environment = "development"
+        else:
+            self.sentry_environment = "production"
 
 
 config = Config()
