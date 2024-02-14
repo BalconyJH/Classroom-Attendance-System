@@ -14,9 +14,9 @@ from PIL import Image, ImageDraw, ImageFont
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
 from app import db, app, config
-from student import update_user_password
+from app.student import update_user_password
 
-from .models import Faces, Course, Student, Teacher, Time_id, Attendance, StudentCourse
+from app.database.models import Faces, Course, Student, Teacher, Time_id, Attendance, StudentCourse
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -586,12 +586,12 @@ def close_course():
 
 
 @teacher.route("/update_password", methods=["GET", "POST"])
-def update_teacher_password():
+async def update_password():
     user_id = session["id"]
     if request.method == "POST":
         old = request.form.get("old")
         new = request.form.get("new")
-        update_user_password("teacher", user_id, old, new)
+        await update_user_password("teacher", user_id, old, new)
     return render_template(
         "teacher/update_password.html", teacher=Teacher.query.filter(Teacher.t_id == user_id).first()
     )

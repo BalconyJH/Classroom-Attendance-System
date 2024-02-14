@@ -9,9 +9,9 @@ from sqlalchemy import extract
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db, app
-from config import config
+from app.config import config
 from app.face_feature_processor import FaceFeatureProcessor
-from database.models import Faces, Course, Student, Teacher, Attendance, StudentCourse
+from app.database.models import Faces, Course, Student, Teacher, Attendance, StudentCourse
 
 student = Blueprint("student", __name__, static_folder="static")
 
@@ -339,10 +339,10 @@ async def update_password():
     )
 
 
-@app.errorhandler(404)
-async def page_not_found(e):
-    app.logger.error("404 error: ", e)
-    return render_template("404.html"), 404
+# @app.errorhandler(404)
+# async def page_not_found(e):
+#     app.logger.error("404 error: ", e)
+#     return render_template("404.html"), 404
 
 
 # @app.errorhandler(Exception)

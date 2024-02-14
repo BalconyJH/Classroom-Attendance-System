@@ -4,7 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 import cv2
 import dlib
 import numpy as np
-from config import config
+from app.config import config
 
 
 def extract_and_resize_face(image: np.ndarray, face_rect: dlib.rectangle, scale_factor: int = 2) -> np.ndarray:

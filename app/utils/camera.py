@@ -2,7 +2,7 @@ import os
 from typing import Union
 
 import cv2
-from src.config import config
+from config import config
 
 from app.utils import logger
 
