@@ -7,10 +7,17 @@
       "FAILED": "登录失败"
     }
   },
+  "RESOURCE": {
+    "LOAD": {
+      "SUCCESS": "资源加载成功",
+      "FAILED": "资源加载失败"
+    }
+  },
   "MODEL": {
     "LOAD": {
       "SUCCESS": "模型加载成功",
-      "FAILED": "模型加载失败"
+      "FAILED": "模型加载失败",
+      "START": "开始加载模型"
     },
     "TRAIN": {
       "PARAMETERS_MISSING": "参数缺失",
