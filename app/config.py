@@ -6,7 +6,11 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
+    # Logging settings
     log_level: str = "INFO"
+    log_path: Path = Path(__file__).parent.parent / "logs"
+
+    # App settings
     cache_path: Path = Path(__file__).parent / "static" / "caches"
     static_path: Path = Path(__file__).parent / "static" / "compress_models"
     face_model_path: Path = Path(__file__).parent / "static" / "models"
