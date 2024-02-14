@@ -20,6 +20,8 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "cryptography>=41.0.7",
     "Flask-Migrate~=4.0",
+    "scikit-learn~=1.4",
+    "loguru~=0.7",
 ]
 requires-python = ">=3.9"
 readme = "README.md"
@@ -32,7 +34,7 @@ target-version = "py39"
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "C", "T", "PYI", "PT", "Q", "TID", "RUF"]
 ignore = ["E402", "C901", "UP037"]
-exclude = ["app/static/**", "app/tempplates/**"]
+exclude = ["app/static/**", "app/tempplates/**", "migrations/**"]
 
 [tool.ruff.format]
 line-ending = "lf"
