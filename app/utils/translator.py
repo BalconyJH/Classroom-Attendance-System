@@ -1,11 +1,9 @@
 import json
-import logging
 from pathlib import Path
 
-from config import config
+from app.config import config
 
 TRANSLATIONS_PATH = Path(f"{config.translation_path}/{config.language_type}.json")
-logger = logging.getLogger(__name__)
 
 
 class Translator:
@@ -20,15 +18,15 @@ class Translator:
         try:
             with open(TRANSLATIONS_PATH, encoding="utf-8") as f:
                 self.translations = json.load(f)
-        except FileNotFoundError as e:
-            logger.error(f"translation file not found: {e}")
+        except FileNotFoundError:
+            pass
 
     def extract_value(self, key_sequence):
         """
-        从给定的JSON数据中，根据键序列抽取值
+        从给定的JSON数据中, 根据键序列抽取值
         :param self: 输入的JSON数据
-        :param key_sequence: 键序列，例如"commands.login.NAME"
-        :return: 如果找到，则返回对应的值，否则返回None
+        :param key_sequence: 键序列, 例如"commands.login.NAME"
+        :return: 如果找到, 则返回对应的值, 否则返回None
         """
 
         keys = key_sequence.split(".")
