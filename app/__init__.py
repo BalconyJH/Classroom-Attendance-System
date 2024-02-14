@@ -1,10 +1,14 @@
+import asyncio
 from datetime import datetime
 
 import sentry_sdk
-
-from config import config
-from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, flash, request, session, url_for, redirect, render_template
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+
+from app.config import config
+from app.log import setup_logger
+from app.utils import init
 
 config_dict = config.dict()
 
@@ -21,7 +25,8 @@ sentry_sdk.init(
     enable_tracing=config_dict["enable_tracing"],
     environment=config_dict["sentry_environment"],
 )
-
+loop = asyncio.get_event_loop()
+loop.run_until_complete(init())
 
 app = Flask(__name__)
 app.config.update(
@@ -32,7 +37,11 @@ app.config.update(
 db = SQLAlchemy(app)
 from app import views  # noqa E402
 
-from database.models import Student, Teacher  # E402
+from app.database.models import Student, Teacher  # E402
+
+setup_logger()
+
+migrate = Migrate(app, db)
 
 
 async def login_user(user_type: str, username: str, password: str, time: str) -> bool:
