@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from app import db  # db是在app/__init__.py生成的关联后的SQLAlchemy实例
 
 
@@ -88,13 +90,9 @@ class Attendance(db.Model):
         return f"<Attendance {self.s_id!r},{self.c_id!r},{self.time!r},{self.result!r}>"
 
 
-class Time_id:
-    id = ""
-    time = ""
-
-    def __init__(self, id, time):
-        self.id = id
-        self.time = time
+class TimeID(BaseModel):
+    id: int
+    time: str
 
 
 class choose_course:
