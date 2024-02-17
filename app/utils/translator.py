@@ -1,56 +1,55 @@
 import json
+from functools import reduce
 from pathlib import Path
+from typing import Optional, Any, Callable
+
+from loguru import logger
+from pydantic import ValidationError, BaseModel
 
 from app.config import config
 
 TRANSLATIONS_PATH = Path(f"{config.translation_path}/{config.language_type}.json")
 
 
-class Translator:
-    """
-    消息翻译组件。
-    """
+class TranslationModel(BaseModel):
+    TRANSLATION_BY: str
+    TRANSLATION_VERSION: str
+    DATABASE: dict[str, dict[str, str]]
+    RESOURCE: dict[str, dict[str, str]]
+    MODEL: dict[str, dict[str, str]]
+    ERRORS: dict[str, Any]
 
-    def __init__(self):
-        """
-        加载指定语言的翻译文件并初始化翻译器。
-        """
+
+# Translator类
+class Translator:
+    def __init__(self) -> None:
+        self.translations: Optional[TranslationModel] = None
         try:
             with open(TRANSLATIONS_PATH, encoding="utf-8") as f:
-                self.translations = json.load(f)
+                translations_data = json.load(f)
+            self.translations = TranslationModel(**translations_data)
         except FileNotFoundError:
-            pass
+            logger.error(f"Translation file {TRANSLATIONS_PATH} not found.")
+        except ValidationError as e:
+            logger.error(f"Translation file format error: {e}")
 
-    def extract_value(self, key_sequence):
-        """
-        从给定的JSON数据中, 根据键序列抽取值
-        :param self: 输入的JSON数据
-        :param key_sequence: 键序列, 例如"commands.login.NAME"
-        :return: 如果找到, 则返回对应的值, 否则返回None
-        """
-
+    def _extract_value(self, key_sequence: str, default: Optional[str] = None) -> Optional[str]:
         keys = key_sequence.split(".")
-        data = self.translations
+        try:
+            return reduce(
+                lambda data, key: data.get(key, default) if isinstance(data, dict) else default,
+                keys,
+                self.translations.model_dump(),
+            )
+        except Exception as e:
+            logger.warning(f"Error extracting translation for key sequence '{key_sequence}': {e}")
+            return default
 
-        for key in keys:
-            if key in data:
-                data = data[key]
-            else:
-                raise ValueError(f"找不到键{key_sequence}的值")
+    def get_local_translations(self) -> Callable[[str, Optional[str]], Optional[str]]:
+        def translator(message_key: str, default: Optional[str] = None) -> Optional[str]:
+            return self._extract_value(message_key, default)
 
-        return data
-
-    def get_local_translation(self, message_keys):
-        """
-        获取指定消息键的翻译文本。
-        """
-        return self.extract_value(message_keys)
-
-    def get_local_translations(self, *message_keys):
-        """
-        获取多个消息键的翻译文本。
-        """
-        return {key: self.get_local_translation(key) for key in message_keys}
+        return translator
 
 
-message_translator = Translator().get_local_translation
+message_translator = Translator().get_local_translations()
