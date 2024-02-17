@@ -1,6 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
 
+from loguru import logger
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings
 
@@ -44,3 +45,4 @@ class Config(BaseSettings):
 
 
 config = Config()
+logger.debug(config.model_dump())
