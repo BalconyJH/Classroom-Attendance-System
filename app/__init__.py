@@ -12,8 +12,9 @@ from app.utils import init
 
 config_dict = config.dict()
 
-
+# Sentry initialization
 sentry_sdk.init(
+    # https://docs.sentry.io/platforms/python/#configure
     dsn=config_dict["sentry_dsn"].get_secret_value(),
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
@@ -25,6 +26,8 @@ sentry_sdk.init(
     enable_tracing=config_dict["enable_tracing"],
     environment=config_dict["sentry_environment"],
 )
+
+# Initialize the application utils
 loop = asyncio.get_event_loop()
 loop.run_until_complete(init())
 
@@ -35,12 +38,17 @@ app.config.update(
     SQLALCHEMY_TRACK_MODIFICATIONS=config_dict["sqlalchemy_track_modifications"],
 )
 db = SQLAlchemy(app)
+
+# Import the views
 from app import views  # noqa E402
 
+# Import Flask models
 from app.database.models import Student, Teacher  # E402
 
+# Initialize the logger
 setup_logger()
 
+# Initialize the migration
 migrate = Migrate(app, db)
 
 
@@ -59,9 +67,9 @@ async def login_user(user_type: str, username: str, password: str, time: str) ->
             "time": getattr(user, "before", None) or time,
         }
         if user_type == "student":
-            session_data.update({"num": 0, "flag": user.flag})  # 假设这些是学生特有的会话信息
+            session_data.update({"num": 0, "flag": user.flag})
         else:
-            session_data["attend"] = []  # 假设这是教师特有的会话信息
+            session_data["attend"] = []
 
         session.update(session_data)
         setattr(user, "before", time)
