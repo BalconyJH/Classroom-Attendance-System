@@ -1,0 +1,5 @@
+*.css linguist-language=Python
+*.html linguist-language=Python
+*.less linguist-language=Python
+*.scss linguist-language=Python
+*.js linguist-language=Python
