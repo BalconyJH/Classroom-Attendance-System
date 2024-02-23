@@ -23,19 +23,9 @@ from app.data_access.student_repository import (
     get_selectable_courses_and_teachers,
     update_user_password,
 )
+from app.utils import save_image
 
 student = Blueprint("student", __name__, static_folder="static")
-
-
-async def save_image(data: bytes, path: Path) -> None:
-    """
-    保存图片
-    :param data: 图片数据
-    :param path: 保存路径
-    :return: None
-    """
-    with open(path, "wb") as file:
-        file.write(data)
 
 
 @student.route("/home")
@@ -175,7 +165,7 @@ async def update_password():
 #     return render_template("404.html"), 404
 
 
-# @app.errorhandler(Exception)
-# async def handle_exception(e):
-#     app.logger.error("An error occurred: ", e)
-#     return render_template("error.html"), 500
+@app.errorhandler(Exception)
+async def handle_exception(e):
+    app.logger.error("An error occurred: ", e)
+    return render_template("error.html"), 500
