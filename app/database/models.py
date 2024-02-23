@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app import db  # db是在app/__init__.py生成的关联后的SQLAlchemy实例
+from app import db
 
 
 class User(db.Model):
@@ -95,7 +95,7 @@ class TimeID(BaseModel):
     time: str
 
 
-class choose_course:
+class ChooseCourse(db.Model):
     __tablename___ = "choose_course"
     c_id = db.Column(db.String(6), primary_key=True)
     t_id = db.Column(db.String(8), nullable=False)
