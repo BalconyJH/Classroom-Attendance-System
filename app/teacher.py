@@ -2,7 +2,7 @@ import os
 import glob
 import time
 from io import BytesIO
-from typing import Union
+from typing import Union, Any
 from urllib.parse import quote
 
 import cv2
@@ -14,9 +14,9 @@ from PIL import Image, ImageDraw, ImageFont
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
 from app import db, app, config
-from app.student import update_user_password
+from app.data_access.student_repository import update_user_password
 
-from app.database.models import Faces, Course, Student, Teacher, Time_id, Attendance, StudentCourse
+from app.database.models import Faces, Course, Student, Teacher, TimeID, Attendance, StudentCourse
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -25,14 +25,48 @@ attend_records = []
 the_now_time = ""
 
 
+async def get_courses_by_teacher_id(teacher_id: str) -> list[Course]:
+    """根据教师ID获取其所有课程。
+
+    参数:
+        teacher_id (int): 教师的ID。
+
+    返回:
+        List[Course]: 包含教师所有课程的列表。
+    """
+    # 使用模型查询来获取课程列表
+    courses = Course.query.filter_by(t_id=teacher_id).all()
+    return courses
+
+
+async def get_student_count_by_course_id(course_id: str) -> int:
+    """根据课程ID获取选修该课程的学生数量。
+
+    参数:
+        course_id (str): 课程的ID。
+
+    返回:
+        int: 选修该课程的学生数量。
+    """
+    # 使用模型查询来统计选修课程的学生数量
+    count = StudentCourse.query.filter_by(c_id=course_id).count()
+    return count
+
+
 @teacher.route("/home")
-def home():
+async def home() -> Any:
+    """渲染教师首页模板, 包括课程信息和其他相关数据。
+
+    返回:
+        渲染的教师首页模板。
+    """
     flag = session["id"][0]
     courses = {}
-    course = db.session.query(Course).filter(Course.t_id == session["id"]).all()
-    for c in course:
-        num = db.session.query(StudentCourse).filter(StudentCourse.c_id == c.c_id).count()
-        courses[c] = num
+    teacher_id = session["id"]
+    teacher_courses = await get_courses_by_teacher_id(teacher_id)
+    for course in teacher_courses:
+        num = await get_student_count_by_course_id(course.c_id)
+        courses[course] = num
     return render_template(
         "teacher/teacher_home.html",
         before=session["time"],
@@ -392,7 +426,7 @@ def select_all_records():
                                 .order_by("s_id")
                                 .all()
                             )
-                        tt = Time_id(id=num, time=times[i])
+                        tt = TimeID(id=num, time=times[i])
                         num += 1
                         one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
@@ -426,7 +460,7 @@ def select_all_records():
                             .order_by("s_id")
                             .all()
                         )
-                    tt = Time_id(id=num, time=times[i])
+                    tt = TimeID(id=num, time=times[i])
                     num += 1
                     one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
@@ -461,7 +495,7 @@ def select_all_records():
                                 .order_by("s_id")
                                 .all()
                             )
-                        tt = Time_id(id=num, time=times[i])
+                        tt = TimeID(id=num, time=times[i])
                         num += 1
                         one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
@@ -493,7 +527,7 @@ def select_all_records():
                             )
                             .all()
                         )
-                    tt = Time_id(id=num, time=times[i])
+                    tt = TimeID(id=num, time=times[i])
                     num += 1
                     one_course_all_time_attends[tt] = one_time_attends
                 dict[course] = one_course_all_time_attends
@@ -510,7 +544,7 @@ def select_all_records():
                 .order_by("s_id")
                 .all()
             )
-            tt = Time_id(id=num, time=times[i])
+            tt = TimeID(id=num, time=times[i])
             num += 1
             one_course_all_time_attends[tt] = one_time_attends
         dict[course] = one_course_all_time_attends
