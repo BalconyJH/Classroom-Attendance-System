@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
+    http_proxy: str = ""
     # Logging settings
     log_level: str = "INFO"
     log_path: Path = Path(__file__).parent.parent / "logs"

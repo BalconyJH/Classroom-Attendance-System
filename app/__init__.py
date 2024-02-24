@@ -10,7 +10,7 @@ from app.config import config
 from app.log import setup_logger
 from app.utils import init
 
-config_dict = config.dict()
+config_dict = config.model_dump()
 
 # Sentry initialization
 sentry_sdk.init(
@@ -25,6 +25,7 @@ sentry_sdk.init(
     profiles_sample_rate=1.0,
     enable_tracing=config_dict["enable_tracing"],
     environment=config_dict["sentry_environment"],
+    http_proxy=config_dict["http_proxy"],
 )
 
 # Initialize the application utils
