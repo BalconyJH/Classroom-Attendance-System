@@ -9,7 +9,6 @@ import cv2
 import dlib
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
 from PIL import Image, ImageDraw, ImageFont
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
@@ -917,31 +916,23 @@ def upload_student():
 
 @teacher.route("/download", methods=["POST"])
 def download():
-    # url = str(request.url)
-    # paras = url.split('?')[1]
-    # print(paras)
-    # nums = paras.split('&')
-    # print(nums)
-    # cid = nums[0].split('=')[1]
-    # cname = nums[1].split('=')[1]
-    # time = nums[2].split('=')[1]
     cid = request.form.get("cid")
     cname = request.form.get("cname")
-    time = request.form.get("time")
-    # 建立数据库引擎
-    engine = create_engine("mysql+pymysql://root:990722@localhost:3306/test?charset=utf8")
-    # 写一条sql
-    sql = "select s_id 学号,result 考勤结果 from attendance where c_id='" + str(cid) + "' and time='" + str(time) + "'"
-    # 建立dataframe
-    df = pd.read_sql_query(sql, engine)
-    out = BytesIO()
-    writer = pd.ExcelWriter("out.xlsx", engine="xlsxwriter")
-    df.to_excel(excel_writer=writer, sheet_name="Sheet1", index=False)
-    writer.save()
-    out.seek(0)
-    # 文件名中文支持
-    name = cname + time + "考勤.xlsx"
-    file_name = quote(name)
-    response = send_file(out, as_attachment=True, attachment_filename=file_name)
-    response.headers["Content-Disposition"] += f"; filename*=utf-8''{file_name}"
-    return send_file("../out.xlsx", as_attachment=True, attachment_filename=file_name)
+    attendance_time = request.form.get("time")
+
+    query = Attendance.query.filter_by(c_id=cid, time=attendance_time).all()
+    df = pd.DataFrame([(d.s_id, d.result) for d in query], columns=["学号", "考勤结果"])
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, sheet_name="Sheet1", index=False)
+    output.seek(0)
+
+    file_name = quote(f"{cname}{attendance_time}考勤.xlsx")
+
+    return send_file(
+        output,
+        download_name=file_name,
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
