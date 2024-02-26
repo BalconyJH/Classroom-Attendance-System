@@ -9,6 +9,8 @@ from flask_sqlalchemy import SQLAlchemy
 from app.config import config
 from app.log import setup_logger
 from app.utils import init
+from app.utils.model import StudentSession, TeacherSession
+from app.utils.session_manager import SessionManager
 
 config_dict = config.model_dump()
 
@@ -79,6 +81,36 @@ async def login_user(user_type: str, username: str, password: str, time: str) ->
     return False
 
 
+async def login_user_for_sess_manager(user_type: str, username: str, password: str, time: str) -> bool:
+    user_model = Student if user_type == "student" else Teacher
+    user_id_field = "s_id" if user_type == "student" else "t_id"
+    password_field = "s_password" if user_type == "student" else "t_password"
+
+    user = user_model.query.filter_by(**{user_id_field: username}).first()
+    if user and getattr(user, password_field) == password:
+        session_data = {
+            "username": username,
+            "id": getattr(user, user_id_field),
+            "name": user.s_name if user_type == "student" else user.t_name,
+            "role": user_type,
+            "time": time,
+        }
+
+        if user_type == "student":
+            session_instance = StudentSession(**session_data, num=0, flag=user.flag)
+        else:  # 教师
+            session_instance = TeacherSession(**session_data, attend=[])
+
+        # 使用 SessionManager 更新会话数据
+        SessionManager.update_session_data(session_instance)
+
+        setattr(user, "before", time)
+        db.session.commit()
+        return True
+
+    return False
+
+
 @app.route("/", methods=["GET", "POST"])
 async def login():
     if request.method == "POST":
@@ -87,7 +119,7 @@ async def login():
         time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         user_type = "student" if len(username) == 13 else "teacher" if len(username) == 8 else None
-        if user_type and await login_user(user_type, username, password, time):
+        if user_type and await login_user_for_sess_manager(user_type, username, password, time):
             flash("登录成功")
             return redirect(url_for(f"{session['role']}.home"))
         else:
@@ -108,9 +140,9 @@ def logout():
 # 拦截器
 @app.before_request
 def before():
-    list = ["png", "css", "js", "ico", "xlsx", "xls", "jpg"]
+    type_list = ["png", "css", "js", "ico", "xlsx", "xls", "jpg"]
     url_after = request.url.split(".")[-1]
-    if url_after in list:
+    if url_after in type_list:
         return None
     url = str(request.endpoint)
     if url == "logout":
