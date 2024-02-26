@@ -2,6 +2,7 @@ import asyncio
 import bz2
 import os
 import shutil
+from pathlib import Path
 
 import numpy as np
 from loguru import logger
@@ -95,3 +96,14 @@ async def init_face_recognition_model_file():
 async def init():
     """初始化"""
     await asyncio.gather(init_shape_predictor_model_file(), init_face_recognition_model_file())
+
+
+async def save_image(data: bytes, path: Path) -> None:
+    """
+    保存图片
+    :param data: 图片数据
+    :param path: 保存路径
+    :return: None
+    """
+    with open(path, "wb") as file:
+        file.write(data)
