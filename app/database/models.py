@@ -94,6 +94,12 @@ class TimeID(BaseModel):
     id: int
     time: str
 
+    def __hash__(self):
+        return hash((self.id, self.time))
+
+    def __eq__(self, other):
+        return isinstance(other, TimeID) and self.id == other.id and self.time == other.time
+
 
 class ChooseCourse(db.Model):
     __tablename___ = "choose_course"
