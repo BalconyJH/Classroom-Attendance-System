@@ -6,7 +6,7 @@ from flask import Blueprint, flash, request, session, url_for, redirect, render_
 
 from app import app
 from app.config import config
-from app.face_feature_processor import FaceFeatureProcessor
+from app.utils.face_feature_processor import FaceFeatureProcessor
 from app.database.models import Student
 from app.data_access.student_repository import (
     get_student_by_id,

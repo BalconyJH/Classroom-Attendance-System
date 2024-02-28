@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import Union
+from typing import Union, Optional
 
 import cv2
 import dlib
@@ -54,7 +54,7 @@ class FaceClassifier:
             cv2.imwrite(image_path, face_chip)
 
     @staticmethod
-    async def train_face_classifier(face_descriptors: list[list[float]]) -> OneClassSVM | None:
+    async def train_face_classifier(face_descriptors: list[list[float]]) -> Optional[OneClassSVM]:
         if len(face_descriptors) == 0:
             logger.warning("MODEL.TRAIN.PARAMETERS_MISSING")
             return None

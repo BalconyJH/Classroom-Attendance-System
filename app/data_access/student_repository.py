@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import config, app, db
 from app.database.models import Attendance, Course, Faces, StudentCourse, Student, Teacher
-from app.face_feature_processor import FaceFeatureProcessor
+from app.utils.face_feature_processor import FaceFeatureProcessor
 
 
 async def get_student_by_id(student_id: str) -> Student:

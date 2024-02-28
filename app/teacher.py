@@ -1,21 +1,18 @@
-import os
 import glob
+import os
 import time
 from io import BytesIO
 from typing import Union, Any
 from urllib.parse import quote
 
-import cv2
-import dlib
-import numpy as np
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
-from app import db, app, config
+from app import db, app, config, TeacherSession
 from app.data_access.student_repository import update_user_password
-
-from app.database.models import Faces, Course, Student, Teacher, TimeID, Attendance, StudentCourse
+from app.database.models import Course, Student, Teacher, TimeID, Attendance, StudentCourse
+from app.utils.session_manager import SessionManager
+from app.utils.camera import VideoCamera
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -59,9 +56,10 @@ async def home() -> Any:
     返回:
         渲染的教师首页模板。
     """
-    flag = session["id"][0]
+    teacher_session: TeacherSession = SessionManager.load_session_data()
     courses = {}
-    teacher_id = session["id"]
+    teacher_id = teacher_session.id
+    flag = teacher_id[0]
     teacher_courses = await get_courses_by_teacher_id(teacher_id)
     for course in teacher_courses:
         num = await get_student_count_by_course_id(course.c_id)
@@ -73,222 +71,6 @@ async def home() -> Any:
         name=session["name"],
         courses=courses,
     )
-
-
-class VideoCamera:
-    def __init__(self, logger, video_stream: Union[int, str] = 0):
-        self.match_threshold = 0.5
-        self.face_detector = dlib.get_frontal_face_detector()
-        self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
-        self.face_recognition_model = dlib.face_recognition_model_v1(
-            f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
-        )
-        self.logger = logger
-        self.font = cv2.FONT_ITALIC
-        # 通过opencv获取实时视频流
-        self.video = cv2.VideoCapture(video_stream)
-
-        # 统计 FPS
-        self.frame_time = 0
-        self.frame_start_time = 0
-        self.fps = 0
-
-        # 统计帧数
-        self.frame_cnt = 0
-
-        # 用来存储所有录入人脸特征的数组
-        self.features_known_list = []
-        # 用来存储录入人脸名字
-        self.name_known_list = []
-
-        # 用来存储上一帧和当前帧 ROI 的质心坐标
-        self.last_frame_centroid_list = []
-        self.current_frame_centroid_list = []
-
-        # 用来存储当前帧检测出目标的名字
-        self.current_frame_name_list = []
-
-        # 上一帧和当前帧中人脸数的计数器
-        self.last_frame_faces_cnt = 0
-        self.current_frame_face_cnt = 0
-
-        # 用来存放进行识别时候对比的欧氏距离
-        self.current_frame_face_X_e_distance_list = []
-
-        # 存储当前摄像头中捕获到的所有人脸的坐标名字
-        self.current_frame_face_position_list = []
-        # 存储当前摄像头中捕获到的人脸特征
-        self.current_frame_face_feature_list = []
-
-        # 控制再识别的后续帧数
-        # 如果识别出 "unknown" 的脸, 将在 reclassify_interval_cnt 计数到 reclassify_interval 后, 对于人脸进行重新识别
-        self.reclassify_interval_cnt = 0
-        self.reclassify_interval = 10
-
-    def __del__(self):
-        self.video.release()
-
-    def get_face_database(self, cid):
-        # print(cid)
-        # course_sid = SC.query.filter(SC.c_id==cid).all()
-        # all_sid = []
-        # for sc in course_sid:
-        #     all_sid.append(sc.s_id)
-        # from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
-        from_db_all_features = Faces.query.all()
-        if from_db_all_features:
-            for from_db_one_features in from_db_all_features:
-                someone_feature_str = str(from_db_one_features.feature).split(",")
-                self.name_known_list.append(from_db_one_features.s_id)
-                features_someone_arr = []
-                for one_feature in someone_feature_str:
-                    if one_feature == "":
-                        features_someone_arr.append("0")
-                    else:
-                        features_someone_arr.append(float(one_feature))
-                self.features_known_list.append(features_someone_arr)
-            return 1
-        else:
-            return 0
-
-    def update_fps(self):
-        now = time.time()
-        self.frame_time = now - self.frame_start_time
-        self.fps = 1.0 / self.frame_time
-        self.frame_start_time = now
-
-    def draw_note(self, img_rd: np.ndarray):
-        cv2.putText(
-            img_rd,
-            "FPS:   " + str(self.fps.__round__(2)),
-            (20, 100),
-            self.font,
-            0.8,
-            (0, 255, 0),
-            1,
-            cv2.LINE_AA,
-        )
-
-    def draw_name(self, img_rd: np.ndarray) -> np.ndarray:
-        if self.current_frame_face_position_list and self.current_frame_name_list:
-            font = ImageFont.truetype("simsun.ttc", 30)
-            img = Image.fromarray(cv2.cvtColor(img_rd, cv2.COLOR_BGR2RGB))
-            draw = ImageDraw.Draw(img)
-            draw.text(
-                xy=self.current_frame_face_position_list[0],
-                text=self.current_frame_name_list[0],
-                font=font,
-            )
-            img_rd = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        return img_rd
-
-    def get_frame(self, cid):
-        # 检查是否能够获取人脸数据库
-        if not self.get_face_database(cid):
-            return
-
-        stream = self.video
-        while stream.isOpened():
-            self.frame_cnt += 1
-            flag, img_rd = stream.read()
-            # 调整图像大小以加快处理速度
-            img_rd = cv2.resize(
-                img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
-            )
-
-            # 检测当前帧的人脸
-            faces = self.face_detector(img_rd, 0)
-            self.update_face_counts(len(faces))
-
-            filename = "attendance.txt"
-            with open(filename, "a", encoding="utf-8") as file:
-                if self.faces_count_changed():
-                    # 人脸数量发生变化时的处理
-                    self.handle_faces_count_change(faces, img_rd, file)
-                else:
-                    # 人脸数量未变时的处理
-                    self.handle_faces_count_unchanged(faces, img_rd, file)
-
-            img_rd = self.draw_name(img_rd)
-
-            # 添加说明文字和更新FPS
-            self.draw_note(img_rd)
-            self.update_fps()
-
-            # 返回处理后的图像
-            ret, jpeg = cv2.imencode(".jpg", img_rd)
-            return jpeg.tobytes()
-
-    def update_face_counts(self, current_count):
-        """更新当前帧和上一帧的人脸数量。"""
-        self.last_frame_faces_cnt = self.current_frame_face_cnt
-        self.current_frame_face_cnt = current_count
-
-    def reset_face_lists(self):
-        """重置与人脸识别相关的列表。"""
-        self.current_frame_face_position_list = []
-        self.current_frame_face_X_e_distance_list = []
-        self.current_frame_face_feature_list = []
-        self.current_frame_name_list = []
-
-    def recognize_faces(self, faces, img_rd, file):
-        """
-        识别并处理当前帧中的人脸。
-
-        参数:
-            faces: 当前帧检测到的人脸列表。
-            img_rd: 当前帧图像, 用于特征提取。
-            file: 出勤记录文件, 用于记录识别的人脸。
-
-        处理流程:
-            1. 对每个检测到的人脸, 提取特征。
-            2. 将提取的特征与已知特征库进行匹配。
-            3. 处理匹配结果, 更新人脸识别信息。
-        """
-        for face in faces:
-            # 提取人脸特征
-            shape = self.shape_predictor(img_rd, face)
-            face_descriptor = self.face_recognition_model.compute_face_descriptor(img_rd, shape)
-
-            # 将当前人脸特征转换为numpy数组
-            face_feature = np.array(face_descriptor)
-
-            # 初始化匹配结果
-            match_name = "Unknown"
-            min_distance = float("inf")
-
-            # 特征匹配
-            for i, known_feature in enumerate(self.features_known_list):
-                distance = np.linalg.norm(face_feature - known_feature)
-                if distance < min_distance and distance < self.match_threshold:  # self.match_threshold是匹配阈值
-                    min_distance = distance
-                    match_name = self.name_known_list[i]  # 假设name_known_list存储了与features_known_list对应的名字
-
-            # 处理匹配结果
-            self.logger.info(f"Face matched with {match_name}, distance: {min_distance}")
-            if match_name != "Unknown":
-                pass
-                # with open(file, "a") as f:
-                #     f.write(f"{match_name}\n")
-
-    def faces_count_changed(self):
-        """检查当前帧和上一帧的人脸数量是否发生变化。"""
-        return self.current_frame_face_cnt != self.last_frame_faces_cnt
-
-    def handle_faces_count_change(self, faces, img_rd, file):
-        """处理人脸数量变化的情况。"""
-        self.reset_face_lists()
-        if self.current_frame_face_cnt > 0:
-            self.recognize_faces(faces, img_rd, file)
-        else:
-            self.reclassify_interval_cnt = 0
-
-    def handle_faces_count_unchanged(self, faces, img_rd, file):
-        """处理人脸数量未变的情况。"""
-        if "unknown" in self.current_frame_name_list:
-            self.reclassify_interval_cnt += 1
-        if self.current_frame_face_cnt == 1 and self.reclassify_interval_cnt == self.reclassify_interval:
-            self.recognize_faces(faces, img_rd, file)
 
 
 # 老师端
@@ -367,6 +149,23 @@ def now_attend():
     return jsonify(attend_records)
 
 
+async def update_attendance_records(all_sid: list[str], all_cid: str, all_time: str) -> None:
+    """
+    更新考勤记录为"已签到"。
+
+    :param all_sid: 学生ID列表。
+    :param all_cid: 课程ID。
+    :param all_time: 考勤时间。
+    :return: None
+    """
+    Attendance.query.filter(
+        Attendance.time == all_time,
+        Attendance.c_id == all_cid,
+        Attendance.s_id.in_(all_sid),
+    ).update({"result": "已签到"}, synchronize_session=False)
+    db.session.commit()
+
+
 # 停止签到
 @teacher.route("/stop_records", methods=["POST"])
 def stop_records():
@@ -375,14 +174,11 @@ def stop_records():
     all_time = session["now_time"]
     for someone_attend in attend_records:
         sid = someone_attend.split("  ")[0]
-
         all_sid.append(sid)
-    Attendance.query.filter(
-        Attendance.time == all_time,
-        Attendance.c_id == all_cid,
-        Attendance.s_id.in_(all_sid),
-    ).update({"result": "已签到"}, synchronize_session=False)
-    db.session.commit()
+
+    # 调用更新考勤记录的函数
+    update_attendance_records(all_sid, all_cid, all_time)
+
     return redirect(url_for("teacher.all_course"))
 
 

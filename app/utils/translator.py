@@ -20,7 +20,6 @@ class TranslationModel(BaseModel):
     ERRORS: dict[str, Any]
 
 
-# Translator类
 class Translator:
     def __init__(self) -> None:
         self.translations: Optional[TranslationModel] = None
