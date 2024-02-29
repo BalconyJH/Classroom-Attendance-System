@@ -2,7 +2,7 @@ import glob
 import os
 import time
 from io import BytesIO
-from typing import Union, Any
+from typing import Union, Any, Optional
 from urllib.parse import quote
 
 import pandas as pd
@@ -11,8 +11,8 @@ from flask import Response, Blueprint, flash, jsonify, request, session, url_for
 from app import db, app, config, TeacherSession
 from app.data_access.student_repository import update_user_password
 from app.database.models import Course, Student, Teacher, TimeID, Attendance, StudentCourse
-from app.utils.session_manager import SessionManager
 from app.utils.camera import VideoCamera
+from app.utils.session_manager import SessionManager
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -346,17 +346,34 @@ def select_all_records():
     return render_template("teacher/show_records.html", dict=dict, courses=courses)
 
 
-@teacher.route("/update_attend", methods=["POST"])
-def update_attend():
-    course = request.form.get("course_id")
-    time = request.form.get("time")
-    sid = request.form.get("sid")
+async def update_attendance(course_id: str, student_id: str, class_time: str, result: str) -> Optional[Attendance]:
+    """
+    更新学生的出勤记录。
+
+    参数:
+        course_id (str): 课程ID。
+        student_id (str): 学生ID。
+        time (datetime): 上课时间。
+        result (str): 出勤结果。
+
+    返回:
+        Optional[Attendance]: 更新后的出勤记录对象, 如果找不到则返回None。
+    """
+    one_attend = Attendance.query.filter_by(c_id=course_id, s_id=student_id, time=class_time).first()
+    if one_attend:
+        one_attend.result = result
+        db.session.commit()
+        return one_attend
+    return None
+
+
+@app.route("/update_attend", methods=["POST"])
+async def update_attend():
+    course_id = request.form.get("course_id")
+    now_time = request.form.get("time")
+    student_id = request.form.get("sid")
     result = request.form.get("result")
-    one_attend = Attendance.query.filter(
-        Attendance.c_id == course, Attendance.s_id == sid, Attendance.time == time
-    ).first()
-    one_attend.result = result
-    db.session.commit()
+    await update_attendance(course_id=course_id, student_id=student_id, time=now_time, result=result)
     return redirect(url_for("teacher.select_all_records"))
 
 
