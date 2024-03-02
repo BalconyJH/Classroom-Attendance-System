@@ -4,6 +4,7 @@ import time
 from io import BytesIO
 from typing import Union, Any, Optional
 from urllib.parse import quote
+from loguru import logger
 
 import pandas as pd
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
@@ -89,13 +90,17 @@ def stream_video_frames(camera: VideoCamera, course_id: str):
     while True:
         with app.app_context():
             frame = camera.get_frame(course_id)
-            yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
+            if frame is not None:
+                yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
+            else:
+                logger.warning("未获取到摄像头帧数据")
+                continue
 
 
 @teacher.route("/video_feed", methods=["GET", "POST"])
 def video_feed():
     return Response(
-        stream_video_frames(VideoCamera(logger=app.logger), session["course"]),
+        stream_video_frames(VideoCamera(video_stream=0), session["course"]),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -162,13 +167,14 @@ async def update_attendance_records(all_sid: list[str], all_cid: str, all_time: 
         Attendance.time == all_time,
         Attendance.c_id == all_cid,
         Attendance.s_id.in_(all_sid),
-    ).update({"result": "已签到"}, synchronize_session=False)
+    ).update({"result": "已签到"})
     db.session.commit()
 
 
 # 停止签到
 @teacher.route("/stop_records", methods=["POST"])
-def stop_records():
+async def stop_records():
+    VideoCamera().release()
     all_sid = []
     all_cid = session["course"]
     all_time = session["now_time"]
@@ -176,8 +182,8 @@ def stop_records():
         sid = someone_attend.split("  ")[0]
         all_sid.append(sid)
 
-    # 调用更新考勤记录的函数
-    update_attendance_records(all_sid, all_cid, all_time)
+    logger.info(f"本次签到的所有学生ID: {all_sid}")
+    await update_attendance_records(all_sid, all_cid, all_time)
 
     return redirect(url_for("teacher.all_course"))
 
@@ -367,13 +373,13 @@ async def update_attendance(course_id: str, student_id: str, class_time: str, re
     return None
 
 
-@app.route("/update_attend", methods=["POST"])
+@teacher.route("/update_attend", methods=["POST"])
 async def update_attend():
     course_id = request.form.get("course_id")
     now_time = request.form.get("time")
     student_id = request.form.get("sid")
     result = request.form.get("result")
-    await update_attendance(course_id=course_id, student_id=student_id, time=now_time, result=result)
+    await update_attendance(course_id=course_id, student_id=student_id, class_time=now_time, result=result)
     return redirect(url_for("teacher.select_all_records"))
 
 
