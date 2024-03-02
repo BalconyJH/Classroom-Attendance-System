@@ -51,7 +51,7 @@ async def get_monthly_attendance_summary(student_id: str, month: int, year: int)
     }
 
 
-async def pre_work_mkdir(path_photos_from_camera):
+def pre_work_mkdir(path_photos_from_camera):
     path = Path(path_photos_from_camera)
     if not path.is_dir():
         path.mkdir()
@@ -59,9 +59,9 @@ async def pre_work_mkdir(path_photos_from_camera):
 
 async def extract_and_process_features():
     path = os.path.join(config.cache_path, "dataset", session["id"])
-    average_face_features = FaceFeatureProcessor(app.logger).calculate_average_face_features(str(path))
+    average_face_features = FaceFeatureProcessor().calculate_average_face_features(str(path))
     features = ",".join(str(feature) for feature in average_face_features)
-    app.logger.info(" >> 特征均值 / The mean of features:", list(average_face_features), "\n")
+    app.logger.info(f" >> 特征均值 / The mean of features: {list(average_face_features)}\n")
     return features
 
 
