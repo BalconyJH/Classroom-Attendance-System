@@ -1,14 +1,12 @@
-import os
 from pathlib import Path
 from typing import Optional
 
-from flask import session, flash
+from flask import session
 from sqlalchemy import extract
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import config, app, db
+from app import db
 from app.database.models import Attendance, Course, Faces, StudentCourse, Student, Teacher
-from app.utils.face_feature_processor import FaceFeatureProcessor
 
 
 async def get_student_by_id(student_id: str) -> Student:
@@ -55,14 +53,6 @@ def pre_work_mkdir(path_photos_from_camera):
     path = Path(path_photos_from_camera)
     if not path.is_dir():
         path.mkdir()
-
-
-async def extract_and_process_features():
-    path = os.path.join(config.cache_path, "dataset", session["id"])
-    average_face_features = FaceFeatureProcessor().calculate_average_face_features(str(path))
-    features = ",".join(str(feature) for feature in average_face_features)
-    app.logger.info(f" >> 特征均值 / The mean of features: {list(average_face_features)}\n")
-    return features
 
 
 async def update_database_with_features(features):
@@ -175,18 +165,14 @@ async def update_user_password(user_type: str, user_id: str, old_password: str, 
         user = Teacher.query.filter_by(t_id=user_id).first()
         password_field = "t_password"
     else:
-        flash("用户类型错误")
         return False
 
     if user is None:
-        flash("用户不存在")
         return False
 
     if getattr(user, password_field) == old_password:
         setattr(user, password_field, new_password)
         db.session.commit()
-        flash("密码修改成功!")
         return True
     else:
-        flash("旧密码错误, 请重试")
         return False

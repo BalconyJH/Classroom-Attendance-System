@@ -9,8 +9,9 @@ from PIL import ImageFont, Image, ImageDraw
 
 from app import config
 
-from app.utils import logger
-from database.models import Faces
+from loguru import logger
+
+from app.data_access.student_faces_repo import StudentFaces
 
 HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcascade_frontalface_alt2.xml")
 
@@ -159,7 +160,7 @@ class VideoCamera:
         # for sc in course_sid:
         #     all_sid.append(sc.s_id)
         # from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
-        from_db_all_features = Faces.query.all()
+        from_db_all_features = StudentFaces.get_all_student_faces()
         if from_db_all_features:
             for from_db_one_features in from_db_all_features:
                 someone_feature_str = str(from_db_one_features.feature).split(",")
