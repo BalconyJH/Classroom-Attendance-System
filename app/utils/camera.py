@@ -102,6 +102,7 @@ class Camera:
 
 class VideoCamera:
     def __init__(self, video_stream: Union[int, str] = 0):
+        self.faces_changed = None
         self.match_threshold = 0.5
         self.face_detector = dlib.get_frontal_face_detector()
         self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
@@ -153,28 +154,17 @@ class VideoCamera:
         self.video.release()
 
     def get_face_database(self, cid):
-        # print(cid)
-        # course_sid = SC.query.filter(SC.c_id==cid).all()
-        # all_sid = []
-        # for sc in course_sid:
-        #     all_sid.append(sc.s_id)
-        # from_db_all_features = Faces.query.filter(Faces.s_id.in_(all_sid)).all()
         from_db_all_features = StudentFaces.get_all_student_faces()
-        if from_db_all_features:
-            for from_db_one_features in from_db_all_features:
-                someone_feature_str = str(from_db_one_features.feature).split(",")
-                self.name_known_list.append(from_db_one_features.s_id)
-                features_someone_arr = []
-                for one_feature in someone_feature_str:
-                    if one_feature == "":
-                        features_someone_arr.append("0")
-                    else:
-                        features_someone_arr.append(float(one_feature))
-                self.features_known_list.append(features_someone_arr)
-            logger.debug(len(self.features_known_list))
-            return 1
-        else:
-            return 0
+        if not from_db_all_features:
+            logger.error("No face features found in database.")
+            return False
+
+        self.name_known_list = [face.s_id for face in from_db_all_features]
+        self.features_known_list = [
+            [float(feature) if feature else 0 for feature in str(face.feature).split(",")]
+            for face in from_db_all_features
+        ]
+        return True
 
     def update_fps(self):
         now = time.time()
@@ -182,17 +172,143 @@ class VideoCamera:
         self.fps = 1.0 / self.frame_time
         self.frame_start_time = now
 
-    def draw_note(self, img_rd: np.ndarray):
-        cv2.putText(
-            img_rd,
-            "FPS:   " + str(self.fps.__round__(2)),
-            (20, 100),
-            self.font,
-            0.8,
-            (0, 255, 0),
-            1,
-            cv2.LINE_AA,
-        )
+    # def init_camera(self) -> bool:
+    #     """
+    #     摄像头初始化检查
+    #     :return: bool
+    #     """
+    #     try:
+    #         if not self.video.isOpened():
+    #             logger.error("摄像头未开启")
+    #             return False
+    #         elif self.video.isOpened():
+    #             if
+
+    def get_frame(self, cid):
+        # 检查是否能够获取人脸数据库
+        if self.get_face_database(cid) is False:
+            return
+
+        stream = self.video
+        while stream.isOpened():
+            self.frame_cnt += 1
+            flag, img_rd = stream.read()
+            # 调整图像大小以加快处理速度
+            img_rd = cv2.resize(
+                img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
+            )
+
+            # 检测当前帧的人脸
+            faces = self.face_detector(img_rd, 0)
+            logger.debug(f"当前帧人脸数: {len(faces)}")
+            self.update_face_counts(len(faces))
+
+            filename = "attendance.txt"
+            with open(filename, "a", encoding="utf-8") as file:
+                self.update_and_process_faces(faces, img_rd, file)
+
+            img_rd = self.draw_name(img_rd)
+
+            # 添加说明文字和更新FPS
+            self.draw_note(img_rd)
+            self.update_fps()
+
+            # 返回处理后的图像
+            status, jpeg = cv2.imencode(".jpg", img_rd)
+            return jpeg.tobytes()
+
+    def update_face_counts(self, current_count):
+        """更新当前帧和上一帧的人脸数量。"""
+        self.last_frame_faces_cnt = self.current_frame_face_cnt
+        self.current_frame_face_cnt = current_count
+        self.faces_changed = self.last_frame_faces_cnt != self.current_frame_face_cnt
+
+    def reset_face_lists(self):
+        """重置与人脸识别相关的列表。"""
+        self.current_frame_face_position_list = []
+        self.current_frame_face_X_e_distance_list = []
+        self.current_frame_face_feature_list = []
+        self.current_frame_name_list = []
+
+    def recognize_faces(self, faces, img_rd):
+        # 遍历当前帧检测到的每个人脸
+        for face in faces:
+            # 获取人脸区域的坐标
+            x, y, w, h = face.left(), face.top(), face.width(), face.height()
+
+            # 提取人脸特征
+            shape = self.shape_predictor(img_rd, face)
+            face_descriptor = self.face_recognition_model.compute_face_descriptor(img_rd, shape)
+            face_feature = np.array(face_descriptor)
+
+            # 初始化匹配结果
+            match_name = "Unknown"
+            min_distance = float("inf")
+
+            # 进行特征匹配
+            for i, known_feature in enumerate(self.features_known_list):
+                distance = np.linalg.norm(face_feature - np.array(known_feature))
+                if distance < min_distance and distance < self.match_threshold:
+                    min_distance = distance
+                    match_name = self.name_known_list[i]  # noqa
+
+            # 在图像上绘制人脸框并标注识别结果
+            cv2.rectangle(img_rd, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        return img_rd
+
+    def faces_count_changed(self):
+        """检查当前帧和上一帧的人脸数量是否发生变化。"""
+        return self.current_frame_face_cnt != self.last_frame_faces_cnt
+
+    def process_faces(self, faces, img_rd, file):
+        """处理当前帧的人脸识别逻辑。"""
+        if faces:
+            self.recognize_faces(faces, img_rd)
+        else:
+            # 如果当前帧没有检测到人脸, 重置相关计数器
+            self.reclassify_interval_cnt = 0
+
+    def update_and_process_faces(self, faces, img_rd, file):
+        """更新人脸数量并处理人脸识别。"""
+        current_count = len(faces)
+        self.update_face_counts(current_count)
+
+        # 如果人脸数量发生变化或达到重分类间隔, 则重置相关列表和计数器
+        if self.faces_changed or self.reclassify_interval_cnt >= self.reclassify_interval:
+            self.reset_face_lists()
+            self.reclassify_interval_cnt = 0  # 重置计数器
+
+        # 如果存在未知人脸, 增加重分类计数器
+        if "unknown" in self.current_frame_name_list:
+            self.reclassify_interval_cnt += 1
+
+        # 如果人脸数量发生变化, 或者达到了重分类间隔, 则处理人脸识别逻辑
+        if self.faces_changed or self.reclassify_interval_cnt >= self.reclassify_interval:
+            self.process_faces(faces, img_rd, file)
+
+    def release(self):
+        """释放视频捕获对象的资源。"""
+        if self.video.isOpened():
+            self.video.release()
+            logger.info("VideoCapture资源已释放")
+
+    def draw_label(self, img, text, pos, bg_color):
+        """
+        在图像上绘制带有背景颜色的文本标签。
+
+        :param img: 原始图像。
+        :param text: 要绘制的文本。
+        :param pos: 文本的左上角坐标。
+        :param bg_color: 背景颜色。
+        """
+        font_scale = 0.5
+        font_thickness = 1
+        text_size = cv2.getTextSize(text, self.font, font_scale, font_thickness)[0]
+        text_x = pos[0]
+        text_y = pos[1] - 5
+        cv2.rectangle(img, (text_x, text_y - text_size[1]), (text_x + text_size[0], text_y + 5), bg_color, cv2.FILLED)
+        cv2.putText(img, text, (text_x, text_y), self.font, font_scale, (255, 255, 255), font_thickness)
 
     def draw_name(self, img_rd: np.ndarray) -> np.ndarray:
         if self.current_frame_face_position_list and self.current_frame_name_list:
@@ -207,110 +323,14 @@ class VideoCamera:
             img_rd = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
         return img_rd
 
-    def get_frame(self, cid):
-        # 检查是否能够获取人脸数据库
-        if not self.get_face_database(cid):
-            return
-
-        stream = self.video
-        while stream.isOpened():
-            self.frame_cnt += 1
-            flag, img_rd = stream.read()
-            # 调整图像大小以加快处理速度
-            img_rd = cv2.resize(
-                img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
-            )
-
-            # 检测当前帧的人脸
-            faces = self.face_detector(img_rd, 0)
-            self.update_face_counts(len(faces))
-
-            filename = "attendance.txt"
-            with open(filename, "a", encoding="utf-8") as file:
-                if self.faces_count_changed():
-                    # 人脸数量发生变化时的处理
-                    self.handle_faces_count_change(faces, img_rd, file)
-                else:
-                    # 人脸数量未变时的处理
-                    self.handle_faces_count_unchanged(faces, img_rd, file)
-
-            img_rd = self.draw_name(img_rd)
-
-            # 添加说明文字和更新FPS
-            self.draw_note(img_rd)
-            self.update_fps()
-
-            # 返回处理后的图像
-            ret, jpeg = cv2.imencode(".jpg", img_rd)
-            return jpeg.tobytes()
-
-    def update_face_counts(self, current_count):
-        """更新当前帧和上一帧的人脸数量。"""
-        self.last_frame_faces_cnt = self.current_frame_face_cnt
-        self.current_frame_face_cnt = current_count
-
-    def reset_face_lists(self):
-        """重置与人脸识别相关的列表。"""
-        self.current_frame_face_position_list = []
-        self.current_frame_face_X_e_distance_list = []
-        self.current_frame_face_feature_list = []
-        self.current_frame_name_list = []
-
-    def recognize_faces(self, faces, img_rd, file):
-        """
-        识别并处理当前帧中的人脸。
-
-        参数:
-            faces: 当前帧检测到的人脸列表。
-            img_rd: 当前帧图像, 用于特征提取。
-            file: 出勤记录文件, 用于记录识别的人脸。
-
-        处理流程:
-            1. 对每个检测到的人脸, 提取特征。
-            2. 将提取的特征与已知特征库进行匹配。
-            3. 处理匹配结果, 更新人脸识别信息。
-        """
-        for face in faces:
-            # 提取人脸特征
-            shape = self.shape_predictor(img_rd, face)
-            face_descriptor = self.face_recognition_model.compute_face_descriptor(img_rd, shape)
-
-            # 将当前人脸特征转换为numpy数组
-            face_feature = np.array(face_descriptor)
-
-            # 初始化匹配结果
-            match_name = "Unknown"
-            min_distance = float("inf")
-
-            # 特征匹配
-            for i, known_feature in enumerate(self.features_known_list):
-                distance = np.linalg.norm(face_feature - known_feature)
-                if distance < min_distance and distance < self.match_threshold:  # self.match_threshold是匹配阈值
-                    min_distance = distance
-                    match_name = self.name_known_list[i]  # 假设name_known_list存储了与features_known_list对应的名字
-
-            # 处理匹配结果
-            self.logger.info(f"Face matched with {match_name}, distance: {min_distance}")
-            if match_name != "Unknown":
-                pass
-                # with open(file, "a") as f:
-                #     f.write(f"{match_name}\n")
-
-    def faces_count_changed(self):
-        """检查当前帧和上一帧的人脸数量是否发生变化。"""
-        return self.current_frame_face_cnt != self.last_frame_faces_cnt
-
-    def handle_faces_count_change(self, faces, img_rd, file):
-        """处理人脸数量变化的情况。"""
-        self.reset_face_lists()
-        if self.current_frame_face_cnt > 0:
-            self.recognize_faces(faces, img_rd, file)
-        else:
-            self.reclassify_interval_cnt = 0
-
-    def handle_faces_count_unchanged(self, faces, img_rd, file):
-        """处理人脸数量未变的情况。"""
-        if "unknown" in self.current_frame_name_list:
-            self.reclassify_interval_cnt += 1
-        if self.current_frame_face_cnt == 1 and self.reclassify_interval_cnt == self.reclassify_interval:
-            self.recognize_faces(faces, img_rd, file)
+    def draw_note(self, img_rd: np.ndarray):
+        cv2.putText(
+            img_rd,
+            "FPS:   " + str(self.fps.__round__(2)),
+            (20, 100),
+            self.font,
+            0.8,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )

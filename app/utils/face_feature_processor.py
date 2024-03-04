@@ -1,10 +1,12 @@
 import os
-from concurrent.futures import ProcessPoolExecutor
 
 import cv2
 import dlib
 import numpy as np
-from app.config import config
+from flask import session
+
+from app import config, app
+from loguru import logger
 
 
 def extract_and_resize_face(image: np.ndarray, face_rect: dlib.rectangle, scale_factor: int = 2) -> np.ndarray:
@@ -57,13 +59,12 @@ def is_face_within_bounds(face_rect: dlib.rectangle, bounds: tuple[int, int]) ->
 
 
 class FaceFeatureProcessor:
-    def __init__(self, logger):
+    def __init__(self):
         self.face_detector = dlib.get_frontal_face_detector()
         self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
         self.face_recognition_model = dlib.face_recognition_model_v1(
             f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
         )
-        self.logger = logger
 
     def process_single_face_image(self, path: str) -> str:
         # 读取人脸图像
@@ -72,18 +73,18 @@ class FaceFeatureProcessor:
         faces: list[dlib.rectangle] = self.face_detector(img_rd, 0)
 
         if len(faces) != 1:
-            self.logger.warning(f"{len(faces)} faces detected. Expected exactly one face.")
+            logger.warning(f"{len(faces)} faces detected. Expected exactly one face.")
             return "false"
 
         face_rect = faces[0]
         if not is_face_within_bounds(face_rect, (640, 480)):
-            self.logger.info(f"Face out of range, discarding image: {path}")
+            logger.info(f"Face out of range, discarding image: {path}")
             return "big"
 
         # 提取并放大人脸
         img_blank = extract_and_resize_face(img_rd, face_rect)
         cv2.imwrite(path, img_blank)
-        self.logger.info(f"Processed and saved image: {path}")
+        logger.info(f"Processed and saved image: {path}")
         return "right"
 
     def extract_face_features_128d(self, path_img: str):
@@ -94,7 +95,7 @@ class FaceFeatureProcessor:
             shape = self.shape_predictor(image, faces[0])
             return self.face_recognition_model.compute_face_descriptor(image, shape)
         else:
-            self.logger.warning(f"No face detected in image: {path_img}")
+            logger.warning(f"No face detected in image: {path_img}")
             return None
 
     def calculate_average_face_features(self, path: str) -> np.ndarray:
@@ -107,13 +108,19 @@ class FaceFeatureProcessor:
         photo_paths = [os.path.join(path, photo_name) for photo_name in os.listdir(path)]
         face_feature_vectors = []
 
-        with ProcessPoolExecutor() as executor:
-            results = executor.map(process_image, photo_paths)
-
-        for result in results:
+        for photo_path in photo_paths:
+            result = process_image(photo_path)
             if result is not None:
                 face_feature_vectors.append(result)
 
         if face_feature_vectors:
             return np.array(face_feature_vectors).mean(axis=0)
         return np.zeros(128, dtype=int, order="C")
+
+
+async def extract_and_process_features():
+    path = os.path.join(config.cache_path, "dataset", session["id"])
+    average_face_features = FaceFeatureProcessor().calculate_average_face_features(str(path))
+    features = ",".join(str(feature) for feature in average_face_features)
+    app.logger.info(f" >> 特征均值 / The mean of features: {list(average_face_features)}\n")
+    return features
