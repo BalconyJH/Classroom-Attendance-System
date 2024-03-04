@@ -101,14 +101,13 @@ class Camera:
 
 
 class VideoCamera:
-    def __init__(self, logger, video_stream: Union[int, str] = 0):
+    def __init__(self, video_stream: Union[int, str] = 0):
         self.match_threshold = 0.5
         self.face_detector = dlib.get_frontal_face_detector()
         self.shape_predictor = dlib.shape_predictor(f"{config.face_model_path}/shape_predictor_68_face_landmarks.dat")
         self.face_recognition_model = dlib.face_recognition_model_v1(
             f"{config.face_model_path}/dlib_face_recognition_resnet_model_v1.dat"
         )
-        self.logger = logger
         self.font = cv2.FONT_ITALIC
         # 通过opencv获取实时视频流
         self.video = cv2.VideoCapture(video_stream)
@@ -172,6 +171,7 @@ class VideoCamera:
                     else:
                         features_someone_arr.append(float(one_feature))
                 self.features_known_list.append(features_someone_arr)
+            logger.debug(len(self.features_known_list))
             return 1
         else:
             return 0
