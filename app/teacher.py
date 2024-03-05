@@ -80,27 +80,25 @@ def reco_faces():
     return render_template("teacher/index.html")
 
 
-def stream_video_frames(camera: VideoCamera, course_id: str):
+def stream_video_frames(camera: VideoCamera, course_id: str, timeout_seconds=10):
     """
-    生成视频流的帧数据
+    生成视频流的帧数据, 带有超时机制。
     :param camera: VideoCamera对象
     :param course_id: 课程id
+    :param timeout_seconds: 超时时间(秒)
     :return: 生成器, 每次返回一帧的数据
     """
-    while True:
-        with app.app_context():
+    with app.app_context():
+        while True:
             frame = camera.get_frame(course_id)
             if frame is not None:
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
-            else:
-                logger.warning("未获取到摄像头帧数据")
-                continue
 
 
 @teacher.route("/video_feed", methods=["GET", "POST"])
 def video_feed():
     return Response(
-        stream_video_frames(VideoCamera(video_stream=0), session["course"]),
+        stream_video_frames(VideoCamera(), session["course"]),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
@@ -154,18 +152,18 @@ def now_attend():
     return jsonify(attend_records)
 
 
-async def update_attendance_records(all_sid: list[str], all_cid: str, all_time: str) -> None:
+async def update_attendance_records(all_sid: list[str], cid: str, all_time: str) -> None:
     """
     更新考勤记录为"已签到"。
 
     :param all_sid: 学生ID列表。
-    :param all_cid: 课程ID。
+    :param cid: 课程ID。
     :param all_time: 考勤时间。
     :return: None
     """
     Attendance.query.filter(
         Attendance.time == all_time,
-        Attendance.c_id == all_cid,
+        Attendance.c_id == cid,
         Attendance.s_id.in_(all_sid),
     ).update({"result": "已签到"})
     db.session.commit()
@@ -176,14 +174,14 @@ async def update_attendance_records(all_sid: list[str], all_cid: str, all_time: 
 async def stop_records():
     VideoCamera().release()
     all_sid = []
-    all_cid = session["course"]
+    cid = session["course"]
     all_time = session["now_time"]
     for someone_attend in attend_records:
         sid = someone_attend.split("  ")[0]
         all_sid.append(sid)
 
     logger.info(f"本次签到的所有学生ID: {all_sid}")
-    await update_attendance_records(all_sid, all_cid, all_time)
+    await update_attendance_records(all_sid, cid, all_time)
 
     return redirect(url_for("teacher.all_course"))
 
