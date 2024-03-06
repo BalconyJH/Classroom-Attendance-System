@@ -5,7 +5,7 @@ from typing import Union
 import cv2
 import dlib
 import numpy as np
-from PIL import ImageFont, Image, ImageDraw
+from sklearn.neighbors import NearestNeighbors
 
 from app import config
 
@@ -17,7 +17,7 @@ HAAR_CASCADE_PATH = os.path.join(os.path.dirname(cv2.__file__), "data", "haarcas
 
 
 class Camera:
-    def __init__(self, video_stream: Union[int, str]):
+    def __init__(self, video_stream: Union[int, str] = 0):
         self.video_stream = video_stream
 
     async def check_camera(self):
@@ -153,6 +153,15 @@ class VideoCamera:
     def __del__(self):
         self.video.release()
 
+    def train_face_recognizer(self) -> None:
+        """
+        训练人脸识别模型, 并初始化人脸识别器。
+        :return: None
+        """
+        self.face_recognizer = NearestNeighbors(n_neighbors=1, algorithm="auto")
+        feature_database = np.array(self.features_known_list)
+        self.face_recognizer.fit(feature_database)
+
     def get_face_database(self, cid):
         from_db_all_features = StudentFaces.get_all_student_faces()
         if not from_db_all_features:
@@ -189,28 +198,40 @@ class VideoCamera:
         if self.get_face_database(cid) is False:
             return
 
-        stream = self.video
-        while stream.isOpened():
+        while self.video.isOpened():
             self.frame_cnt += 1
-            flag, img_rd = stream.read()
+            flag, img_rd = self.video.read()
             # 调整图像大小以加快处理速度
             img_rd = cv2.resize(
                 img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
             )
 
             # 检测当前帧的人脸
+            logger.info(f"img size: {img_rd.shape}")
             faces = self.face_detector(img_rd, 0)
             logger.debug(f"当前帧人脸数: {len(faces)}")
+            if len(faces) > 1:
+                logger.warning("multiple faces detected")
+                continue
             self.update_face_counts(len(faces))
 
-            filename = "attendance.txt"
-            with open(filename, "a", encoding="utf-8") as file:
-                self.update_and_process_faces(faces, img_rd, file)
+            # filename = "attendance.txt"
+            # with open(filename, "a", encoding="utf-8") as file:
+            #     self.update_and_process_faces(faces, img_rd, file)
+            #
+            # img_rd = self.draw_name(img_rd)
+            #
+            # # 添加说明文字和更新FPS
+            # self.draw_note(img_rd)
+            # self.update_fps()
+            if len(faces) > 0:
+                img_rd = self.recognize_faces(faces[0], img_rd)
+                img_rd = self.draw_name(img_rd)
 
-            img_rd = self.draw_name(img_rd)
-
-            # 添加说明文字和更新FPS
+            # 绘制FPS等信息
             self.draw_note(img_rd)
+
+            # 更新FPS
             self.update_fps()
 
             # 返回处理后的图像
@@ -230,32 +251,31 @@ class VideoCamera:
         self.current_frame_face_feature_list = []
         self.current_frame_name_list = []
 
-    def recognize_faces(self, faces, img_rd):
-        # 遍历当前帧检测到的每个人脸
-        for face in faces:
-            # 获取人脸区域的坐标
-            x, y, w, h = face.left(), face.top(), face.width(), face.height()
-
-            # 提取人脸特征
-            shape = self.shape_predictor(img_rd, face)
-            face_descriptor = self.face_recognition_model.compute_face_descriptor(img_rd, shape)
-            face_feature = np.array(face_descriptor)
-
-            # 初始化匹配结果
-            match_name = "Unknown"
-            min_distance = float("inf")
-
-            # 进行特征匹配
-            for i, known_feature in enumerate(self.features_known_list):
-                distance = np.linalg.norm(face_feature - np.array(known_feature))
-                if distance < min_distance and distance < self.match_threshold:
-                    min_distance = distance
-                    match_name = self.name_known_list[i]  # noqa
-
-            # 在图像上绘制人脸框并标注识别结果
-            cv2.rectangle(img_rd, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        return img_rd
+    # def recognize_faces(self, faces, img_rd):
+    #     # 获取人脸区域的坐标
+    #     x, y, w, h = faces.left(), faces.top(), faces.width(), faces.height()
+    #     self.current_frame_face_position_list = [(x, y), (x + w, y + h)]
+    #
+    #     # 提取人脸特征
+    #     shape = self.shape_predictor(img_rd, faces)
+    #     face_descriptor = self.face_recognition_model.compute_face_descriptor(img_rd, shape)
+    #     face_feature = np.array(face_descriptor)
+    #
+    #     # 初始化匹配结果
+    #     match_name = "Unknown"
+    #     min_distance = float("inf")
+    #
+    #     # 进行特征匹配
+    #     for i, known_feature in enumerate(self.features_known_list):
+    #         distance = np.linalg.norm(face_feature - np.array(known_feature))
+    #         if distance < min_distance:
+    #             min_distance = distance
+    #             match_name = self.name_known_list[i]
+    #
+    #     # 在图像上绘制人脸框并标注识别结果
+    #     cv2.rectangle(img_rd, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    #
+    #     return img_rd
 
     def faces_count_changed(self):
         """检查当前帧和上一帧的人脸数量是否发生变化。"""
@@ -310,17 +330,35 @@ class VideoCamera:
         cv2.rectangle(img, (text_x, text_y - text_size[1]), (text_x + text_size[0], text_y + 5), bg_color, cv2.FILLED)
         cv2.putText(img, text, (text_x, text_y), self.font, font_scale, (255, 255, 255), font_thickness)
 
+    # def draw_name(self, img_rd: np.ndarray) -> np.ndarray:
+    #     if self.current_frame_face_position_list and self.current_frame_name_list:
+    #         font = ImageFont.truetype("simsun.ttc", 30)
+    #         img = Image.fromarray(cv2.cvtColor(img_rd, cv2.COLOR_BGR2RGB))
+    #         draw = ImageDraw.Draw(img)
+    #         draw.text(
+    #             xy=self.current_frame_face_position_list[0],
+    #             text=self.current_frame_name_list[0],
+    #             font=font,
+    #         )
+    #         img_rd = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    #     return img_rd
+
     def draw_name(self, img_rd: np.ndarray) -> np.ndarray:
-        if self.current_frame_face_position_list and self.current_frame_name_list:
-            font = ImageFont.truetype("simsun.ttc", 30)
-            img = Image.fromarray(cv2.cvtColor(img_rd, cv2.COLOR_BGR2RGB))
-            draw = ImageDraw.Draw(img)
-            draw.text(
-                xy=self.current_frame_face_position_list[0],
-                text=self.current_frame_name_list[0],
-                font=font,
-            )
-            img_rd = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        # if self.current_frame_face_position_list and self.current_frame_name_list:
+        if self.current_frame_face_position_list:
+            # 设置字体, OpenCV没有内置字体支持中文, 这里使用英文文本
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 1
+            font_color = (0, 255, 0)  # 绿色
+            line_type = 2
+
+            # 获取要绘制的文本位置
+            logger.info(self.current_frame_face_position_list[0])
+            text_position = self.current_frame_face_position_list[0]
+
+            # 使用cv2.putText直接在图像上绘制文本
+            cv2.putText(img_rd, "test text", text_position, font, font_scale, font_color, line_type)
+
         return img_rd
 
     def draw_note(self, img_rd: np.ndarray):
