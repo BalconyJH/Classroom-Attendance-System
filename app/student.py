@@ -13,7 +13,6 @@ from app.data_access.student_repository import (
     get_attendance_records,
     get_monthly_attendance_summary,
     pre_work_mkdir,
-    extract_and_process_features,
     update_database_with_features,
     get_courses_by_student_id,
     get_records_by_course_and_time,
@@ -23,6 +22,7 @@ from app.data_access.student_repository import (
     get_selectable_courses_and_teachers,
     update_user_password,
 )
+from app.utils.face_feature_processor import extract_and_process_features
 from app.utils import save_image
 
 student = Blueprint("student", __name__, static_folder="static")
@@ -49,18 +49,18 @@ async def home():
 
 
 @student.route("/get_faces", methods=["GET", "POST"])
-async def get_faces():
+def get_faces():
     if request.method == "POST":
         imgdata = base64.b64decode(request.form.get("face"))
         path = Path(config.cache_path / "dataset" / session["id"])
-        face_register = FaceFeatureProcessor(app.logger)
+        face_register = FaceFeatureProcessor()
         if session["num"] == 0:
-            await pre_work_mkdir(path)
+            pre_work_mkdir(path)
         if session["num"] == 5:
             session["num"] = 0
         session["num"] += 1
         current_face_path = path / f"{session['num']}.jpg"
-        await save_image(imgdata, current_face_path)
+        save_image(imgdata, current_face_path)
         flag = face_register.process_single_face_image(str(current_face_path))
         if flag != "right":
             session["num"] -= 1

@@ -4,10 +4,10 @@ import time
 from io import BytesIO
 from typing import Union, Any, Optional
 from urllib.parse import quote
-from loguru import logger
 
 import pandas as pd
 from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
+from loguru import logger
 
 from app import db, app, config, TeacherSession
 from app.data_access.student_repository import update_user_password
@@ -80,6 +80,21 @@ def reco_faces():
     return render_template("teacher/index.html")
 
 
+def update_attend_records(sid: str) -> None:
+    """更新考勤记录"""
+    # 首先检查sid是否已经在attend_records中
+    sid_exists = False
+    for record in attend_records:
+        if str(sid) == record.split()[0]:
+            sid_exists = True
+            break  # 如果找到了sid, 就不需要进一步检查
+
+    # 如果sid不存在于任何记录中, 添加新的考勤记录
+    if not sid_exists:
+        attend_time = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        attend_records.append(f"{sid}  {attend_time}  已签到\n")
+
+
 def stream_video_frames(camera: VideoCamera, course_id: str, timeout_seconds=10):
     """
     生成视频流的帧数据, 带有超时机制。
@@ -90,7 +105,10 @@ def stream_video_frames(camera: VideoCamera, course_id: str, timeout_seconds=10)
     """
     with app.app_context():
         while True:
-            frame = camera.get_frame(course_id)
+            frame, student_id = camera.get_frame()
+            if student_id != "Unknown":
+                logger.debug(f"检测到学生: {student_id}")
+                update_attend_records(student_id)
             if frame is not None:
                 yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n\r\n")
 
@@ -142,8 +160,9 @@ def records():
 
     session["now_time"] = now
     initialize_attendance_records(cid, now)
+    signed_in_students = attend_records
 
-    return render_template("teacher/index.html")
+    return render_template("teacher/index.html", signed_in_students=signed_in_students)
 
 
 # 实时显示当前签到人员
@@ -172,7 +191,6 @@ async def update_attendance_records(all_sid: list[str], cid: str, all_time: str)
 # 停止签到
 @teacher.route("/stop_records", methods=["POST"])
 async def stop_records():
-    VideoCamera().release()
     all_sid = []
     cid = session["course"]
     all_time = session["now_time"]
@@ -181,8 +199,8 @@ async def stop_records():
         all_sid.append(sid)
 
     logger.info(f"本次签到的所有学生ID: {all_sid}")
+    logger.info(f"本次签到的课程ID: {cid}")
     await update_attendance_records(all_sid, cid, all_time)
-
     return redirect(url_for("teacher.all_course"))
 
 
