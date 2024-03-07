@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 from pydantic import SecretStr, model_validator
@@ -14,6 +15,7 @@ class Config(BaseSettings):
 
     # App settings
     cache_path: Path = Path(__file__).parent / "static" / "caches"
+    font_path: Path = Path(__file__).parent / "static" / "fonts" / "PingFang Regular.ttf"
     static_path: Path = Path(__file__).parent / "static" / "compress_models"
     face_model_path: Path = Path(__file__).parent / "static" / "models"
     translation_path: Path = Path(__file__).parent / "static" / "translations"
@@ -29,7 +31,7 @@ class Config(BaseSettings):
     sqlalchemy_track_modifications: bool = True
 
     # sentry settings
-    sentry_dsn: SecretStr
+    sentry_dsn: Optional[SecretStr] = None
     enable_tracing: bool = False
     sentry_environment: str = "production"
 
