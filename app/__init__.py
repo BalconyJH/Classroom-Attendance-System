@@ -15,20 +15,21 @@ from app.utils.session_manager import SessionManager
 config_dict = config.model_dump()
 
 # Sentry initialization
-sentry_sdk.init(
-    # https://docs.sentry.io/platforms/python/#configure
-    dsn=config_dict["sentry_dsn"].get_secret_value(),
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    traces_sample_rate=1.0,
-    # Set profiles_sample_rate to 1.0 to profile 100%
-    # of sampled transactions.
-    # We recommend adjusting this value in production.
-    profiles_sample_rate=1.0,
-    enable_tracing=config_dict["enable_tracing"],
-    environment=config_dict["sentry_environment"],
-    http_proxy=config_dict["http_proxy"],
-)
+if config_dict["sentry_dsn"] is not None:
+    sentry_sdk.init(
+        # https://docs.sentry.io/platforms/python/#configure
+        dsn=config_dict["sentry_dsn"].get_secret_value(),
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for performance monitoring.
+        traces_sample_rate=1.0,
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        # We recommend adjusting this value in production.
+        profiles_sample_rate=1.0,
+        enable_tracing=config_dict["enable_tracing"],
+        environment=config_dict["sentry_environment"],
+        http_proxy=config_dict["http_proxy"],
+    )
 
 # Initialize the application utils
 loop = asyncio.get_event_loop()
