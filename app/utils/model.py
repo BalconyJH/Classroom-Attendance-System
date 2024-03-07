@@ -11,8 +11,8 @@ class UserSessionBase(BaseModel):
 
 
 class StudentSession(UserSessionBase):
-    num: int = Field(0, alias="num")
-    flag: bool = Field(True, alias="flag")
+    num: int = Field(0, alias="num", description="Number of faces")
+    flag: bool = Field(True, alias="flag", description="Entry permissions")
 
 
 class TeacherSession(UserSessionBase):
