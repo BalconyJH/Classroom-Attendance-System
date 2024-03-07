@@ -46,23 +46,6 @@
         <h2>签到结果：</h2>
         <h4 id="result"></h4>
 
-        <table class="table table-bordered table-striped">
-            <thead>
-            <tr>
-                <th>学生姓名</th>
-                <th>签到时间</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for student in signed_in_students %}
-                <tr>
-                    <td>{{ student.name }}</td>
-                    <td>{{ student.time }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-
         <form action="{{ url_for('teacher.stop_records') }}" method="post">
             <input type="submit" class="btn btn-primary" value="停止签到">
         </form>
@@ -101,11 +84,16 @@
         setTimeout(getApi, 1000);
         $.get("/teacher/now_attend", function (res) {
             console.log(res);
-            const len = res.length - 1;
-            $("#result").text(res[len]);
-        });
+            // 清空result元素，以便于显示最新的完整列表
+            $("#result").empty();
 
+            // 遍历res数组，为每一项创建一个新的<p>元素，并添加到result中
+            for (let i = 0; i < res.length; i++) {
+                $("#result").append($("<p>").text(res[i]));
+            }
+        });
     }
+
 
     function stop() {
         $.get("/teacher/stop_records");
