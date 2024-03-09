@@ -28,18 +28,18 @@ def unzip_static(static_zip_path: str, static_unzip_path: str) -> bool:
         return False
 
 
-def return_euclidean_distance(feature_1: list[float], feature_2: list[float]) -> float:
+def is_distance_below_threshold(feature_1: np.ndarray, feature_2: np.ndarray, threshold: float) -> bool:
     """
-    计算并返回两个特征向量之间的欧氏距离是否小于预设阈值。
+    判断两个特征向量之间的欧氏距离是否小于预设阈值。
 
-    :param feature_1: 第一个特征向量, 表示为浮点数列表。
-    :param feature_2: 第二个特征向量, 表示为浮点数列表。
+    :param feature_1: 第一个特征向量, numpy.ndarray类型。
+    :param feature_2: 第二个特征向量, numpy.ndarray类型。
+    :param threshold: 比较的阈值, float类型。
 
-    :return: 返回两个特征向量之间的欧氏距离。
+    :return: 如果两个特征向量之间的欧氏距离小于阈值, 则返回True; 否则返回False。
     """
-    feature_1_np = np.array(feature_1)
-    feature_2_np = np.array(feature_2)
-    return np.sqrt(np.sum(np.square(feature_1_np - feature_2_np)))
+    distance = np.linalg.norm(feature_1 - feature_2)
+    return distance < threshold
 
 
 # async def database_init():
@@ -98,7 +98,7 @@ async def init():
     await asyncio.gather(init_shape_predictor_model_file(), init_face_recognition_model_file())
 
 
-async def save_image(data: bytes, path: Path) -> None:
+def save_image(data: bytes, path: Path) -> None:
     """
     保存图片
     :param data: 图片数据
