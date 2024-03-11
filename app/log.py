@@ -32,4 +32,5 @@ def setup_logger():
         rotation="1 day",
         retention="30 days",
         level=config.log_level,
+        encoding="utf-8",
     )
