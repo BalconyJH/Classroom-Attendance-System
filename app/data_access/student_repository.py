@@ -6,7 +6,7 @@ from sqlalchemy import extract
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
-from app.database.models import Attendance, Course, Faces, StudentCourse, Student, Teacher
+from app.database.models import Faces, Course, Student, Teacher, Attendance, StudentCourse
 
 
 async def get_student_by_id(student_id: str) -> Student:

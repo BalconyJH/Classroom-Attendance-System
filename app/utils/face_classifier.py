@@ -1,5 +1,3 @@
-import os
-import pickle
 from typing import Union, Optional
 
 import cv2
@@ -7,8 +5,8 @@ import dlib
 from loguru import logger
 from sklearn.svm import OneClassSVM
 
-from app.utils import message_translator
 from config import config
+from app.utils import message_translator
 
 
 class FaceClassifier:
@@ -54,7 +52,9 @@ class FaceClassifier:
             cv2.imwrite(image_path, face_chip)
 
     @staticmethod
-    async def train_face_classifier(face_descriptors: list[list[float]]) -> Optional[OneClassSVM]:
+    async def train_face_classifier(
+        face_descriptors: list[list[float]],
+    ) -> Optional[OneClassSVM]:
         if len(face_descriptors) == 0:
             logger.warning("MODEL.TRAIN.PARAMETERS_MISSING")
             return None
@@ -65,8 +65,8 @@ class FaceClassifier:
 
         return model
 
-    @staticmethod
-    async def save_face_classifier(data: Union[list[float], OneClassSVM], uid: str, path: str):
-        file_path = os.path.join(path, f"{uid}.pkl")
-        with open(file_path, "wb") as f:
-            pickle.dump(data, f)
+    # @staticmethod
+    # async def save_face_classifier(data: Union[list[float], OneClassSVM], uid: str, path: str):
+    #     file_path = os.path.join(path, f"{uid}.pkl")
+    #     with open(file_path, "wb") as f:
+    #         pickle.dump(data, f)

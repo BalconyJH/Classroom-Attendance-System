@@ -4,9 +4,9 @@ import cv2
 import dlib
 import numpy as np
 from flask import session
+from loguru import logger
 
 from app import config
-from loguru import logger
 
 
 def extract_and_resize_face(image: np.ndarray, face_rect: dlib.rectangle, scale_factor: int = 2) -> np.ndarray:

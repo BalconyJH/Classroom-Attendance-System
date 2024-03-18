@@ -1,29 +1,28 @@
 import base64
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
 
 from flask import Blueprint, flash, request, session, url_for, redirect, render_template
 
 from app import app
 from app.config import config
-from app.utils.face_feature_processor import FaceFeatureProcessor
-from app.database.models import Student
-from app.data_access.student_repository import (
-    get_student_by_id,
-    get_attendance_records,
-    get_monthly_attendance_summary,
-    pre_work_mkdir,
-    update_database_with_features,
-    get_courses_by_student_id,
-    get_records_by_course_and_time,
-    add_student_course,
-    get_available_courses,
-    delete_student_course,
-    get_selectable_courses_and_teachers,
-    update_user_password,
-)
-from app.utils.face_feature_processor import extract_and_process_features
 from app.utils import save_image
+from app.database.models import Student
+from app.utils.face_feature_processor import FaceFeatureProcessor, extract_and_process_features
+from app.data_access.student_repository import (
+    pre_work_mkdir,
+    get_student_by_id,
+    add_student_course,
+    update_user_password,
+    delete_student_course,
+    get_available_courses,
+    get_attendance_records,
+    get_courses_by_student_id,
+    update_database_with_features,
+    get_monthly_attendance_summary,
+    get_records_by_course_and_time,
+    get_selectable_courses_and_teachers,
+)
 
 student = Blueprint("student", __name__, static_folder="static")
 
@@ -155,7 +154,8 @@ async def update_password():
         else:
             app.logger.debug(f"用户:{user_id}修改密码 失败")
     return render_template(
-        "student/update_password.html", student=Student.query.filter(Student.s_id == user_id).first()
+        "student/update_password.html",
+        student=Student.query.filter(Student.s_id == user_id).first(),
     )
 
 

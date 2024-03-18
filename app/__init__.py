@@ -2,15 +2,15 @@ import asyncio
 from datetime import datetime
 
 import sentry_sdk
-from flask import Flask, flash, request, session, url_for, redirect, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, flash, request, session, url_for, redirect, render_template
 
+from app.utils import init
 from app.config import config
 from app.log import setup_logger
-from app.utils import init
-from app.utils.model import StudentSession, TeacherSession
 from app.utils.session_manager import SessionManager
+from app.utils.model import StudentSession, TeacherSession
 
 config_dict = config.model_dump()
 

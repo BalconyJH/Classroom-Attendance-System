@@ -1,6 +1,8 @@
-from loguru import logger
 import logging
 from datetime import datetime
+
+from loguru import logger
+
 from app.config import config
 
 

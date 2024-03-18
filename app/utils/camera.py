@@ -5,8 +5,8 @@ from typing import Union
 import cv2
 import dlib
 import numpy as np
-from PIL import ImageFont, ImageDraw, Image
 from loguru import logger
+from PIL import Image, ImageDraw, ImageFont
 from sklearn.neighbors import NearestNeighbors
 
 from app import config
@@ -54,7 +54,11 @@ class Camera:
             if not ret:
                 break
 
-            img = cv2.resize(img, (int(img.shape[1] * 0.5), int(img.shape[0] * 0.5)), interpolation=cv2.INTER_AREA)
+            img = cv2.resize(
+                img,
+                (int(img.shape[1] * 0.5), int(img.shape[0] * 0.5)),
+                interpolation=cv2.INTER_AREA,
+            )
 
             # detect faces using haar cascade detector
             faces = face_classifier.detectMultiScale(img, 1.0485258, 6)
@@ -200,7 +204,9 @@ class VideoCamera:
             flag, img_rd = self.video.read()
             # 调整图像大小以加快处理速度
             img_rd = cv2.resize(
-                img_rd, (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)), interpolation=cv2.INTER_AREA
+                img_rd,
+                (int(img_rd.shape[1] * 0.5), int(img_rd.shape[0] * 0.5)),
+                interpolation=cv2.INTER_AREA,
             )
 
             # 检测当前帧的人脸
@@ -303,7 +309,12 @@ class VideoCamera:
             self.video.release()
             logger.info("VideoCapture资源已释放")
 
-    def draw_name(self, img_rd: np.ndarray, text: str, box: tuple[tuple[int, int], tuple[int, int]]) -> np.ndarray:
+    def draw_name(
+        self,
+        img_rd: np.ndarray,
+        text: str,
+        box: tuple[tuple[int, int], tuple[int, int]],
+    ) -> np.ndarray:
         """
         在图像上绘制人脸名字, 注意, 该方法使用的是PIL库。
         :param img_rd: 原始图像。

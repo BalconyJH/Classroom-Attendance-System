@@ -1,19 +1,19 @@
-import glob
 import os
+import glob
 import time
 from io import BytesIO
-from typing import Union, Any, Optional
 from urllib.parse import quote
+from typing import Any, Union, Optional
 
 import pandas as pd
-from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 from loguru import logger
+from flask import Response, Blueprint, flash, jsonify, request, session, url_for, redirect, send_file, render_template
 
-from app import db, app, config, TeacherSession
-from app.data_access.student_repository import update_user_password
-from app.database.models import Course, Student, Teacher, TimeID, Attendance, StudentCourse
 from app.utils.camera import VideoCamera
+from app import TeacherSession, db, app, config
 from app.utils.session_manager import SessionManager
+from app.data_access.student_repository import update_user_password
+from app.database.models import Course, TimeID, Student, Teacher, Attendance, StudentCourse
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
@@ -198,8 +198,8 @@ async def stop_records():
         sid = someone_attend.split("  ")[0]
         all_sid.append(sid)
 
-    logger.info(f"本次签到的所有学生ID: {all_sid}")
-    logger.info(f"本次签到的课程ID: {cid}")
+    logger.debug(f"本次签到的所有学生ID: {all_sid}")
+    logger.debug(f"本次签到的课程ID: {cid}")
     await update_attendance_records(all_sid, cid, all_time)
     return redirect(url_for("teacher.all_course"))
 
@@ -461,7 +461,8 @@ async def update_password():
         new = request.form.get("new")
         await update_user_password("teacher", user_id, old, new)
     return render_template(
-        "teacher/update_password.html", teacher=Teacher.query.filter(Teacher.t_id == user_id).first()
+        "teacher/update_password.html",
+        teacher=Teacher.query.filter(Teacher.t_id == user_id).first(),
     )
 
 
@@ -478,7 +479,9 @@ def select_sc():
                 db.session.query(Student)
                 .join(StudentCourse)
                 .filter(
-                    Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id, StudentCourse.s_id == sid
+                    Student.s_id == StudentCourse.s_id,
+                    StudentCourse.c_id == course.c_id,
+                    StudentCourse.s_id == sid,
                 )
                 .all()
             )
@@ -496,7 +499,9 @@ def select_sc():
                     db.session.query(Student)
                     .join(StudentCourse)
                     .filter(
-                        Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id, StudentCourse.s_id == sid
+                        Student.s_id == StudentCourse.s_id,
+                        StudentCourse.c_id == course.c_id,
+                        StudentCourse.s_id == sid,
                     )
                     .all()
                 )
@@ -506,7 +511,10 @@ def select_sc():
                 course_student = (
                     db.session.query(Student)
                     .join(StudentCourse)
-                    .filter(Student.s_id == StudentCourse.s_id, StudentCourse.c_id == course.c_id)
+                    .filter(
+                        Student.s_id == StudentCourse.s_id,
+                        StudentCourse.c_id == course.c_id,
+                    )
                     .all()
                 )
                 dict[course] = course_student

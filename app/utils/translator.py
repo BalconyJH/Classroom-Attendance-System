@@ -1,10 +1,10 @@
 import json
-from functools import reduce
 from pathlib import Path
-from typing import Optional, Any, Callable
+from functools import reduce
+from typing import Any, Callable, Optional
 
 from loguru import logger
-from pydantic import ValidationError, BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.config import config
 
@@ -36,7 +36,7 @@ class Translator:
         keys = key_sequence.split(".")
         try:
             return reduce(
-                lambda data, key: data.get(key, default) if isinstance(data, dict) else default,
+                lambda data, key: (data.get(key, default) if isinstance(data, dict) else default),
                 keys,
                 self.translations.model_dump(),
             )

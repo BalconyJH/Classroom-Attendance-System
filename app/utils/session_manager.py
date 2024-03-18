@@ -1,7 +1,8 @@
-from flask import session
 from typing import Union
 
-from app.utils.model import TeacherSession, StudentSession
+from flask import session
+
+from app.utils.model import StudentSession, TeacherSession
 
 
 class SessionManager:

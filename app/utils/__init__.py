@@ -1,7 +1,7 @@
-import asyncio
-import bz2
 import os
+import bz2
 import shutil
+import asyncio
 from pathlib import Path
 
 import numpy as np
@@ -58,6 +58,7 @@ def is_distance_below_threshold(feature_1: np.ndarray, feature_2: np.ndarray, th
 async def init_shape_predictor_model_file():
     """初始化人脸关键点检测模型文件"""
     import dlib
+
     from app.config import config
 
     logger.info(message_translator("MODEL.LOAD.START") + "shape_predictor_model_file")
@@ -77,6 +78,7 @@ async def init_shape_predictor_model_file():
 async def init_face_recognition_model_file():
     """初始化人脸识别模型文件"""
     import dlib
+
     from app.config import config
 
     logger.info(message_translator("MODEL.LOAD.START") + "face_recognition_model_file")
