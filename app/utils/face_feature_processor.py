@@ -99,8 +99,8 @@ class FaceFeatureProcessor:
             return None
 
     def calculate_average_face_features(self, path: str) -> np.ndarray:
-        def process_image(photo_path):
-            features_128d = self.extract_face_features_128d(photo_path)
+        def process_image(_photo_path):
+            features_128d = self.extract_face_features_128d(_photo_path)
             if features_128d is not None:
                 return features_128d
             return None

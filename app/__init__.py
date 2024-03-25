@@ -44,7 +44,6 @@ app.config.update(
 db = SQLAlchemy(app)
 
 # Import the views
-from app import views  # noqa E402
 
 # Import Flask models
 from app.database.models import Student, Teacher  # E402
@@ -99,10 +98,9 @@ async def login_user_for_sess_manager(user_type: str, username: str, password: s
 
         if user_type == "student":
             session_instance = StudentSession(**session_data, num=0, flag=user.flag)
-        else:  # 教师
+        else:
             session_instance = TeacherSession(**session_data, attend=[])
 
-        # 使用 SessionManager 更新会话数据
         SessionManager.update_session_data(session_instance)
 
         setattr(user, "before", time)

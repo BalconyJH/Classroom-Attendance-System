@@ -167,5 +167,5 @@ async def update_password():
 
 @app.errorhandler(Exception)
 async def handle_exception(e):
-    app.logger.error("An error occurred: ", e)
+    app.logger.error(f"An error occurred: {e}")
     return render_template("error.html"), 500

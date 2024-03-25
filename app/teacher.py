@@ -2,8 +2,8 @@ import os
 import glob
 import time
 from io import BytesIO
+from typing import Any
 from urllib.parse import quote
-from typing import Any, Union, Optional
 
 import pandas as pd
 from loguru import logger
@@ -14,40 +14,24 @@ from app import TeacherSession, db, app, config
 from app.utils.session_manager import SessionManager
 from app.data_access.student_repository import update_user_password
 from app.database.models import Course, TimeID, Student, Teacher, Attendance, StudentCourse
+from app.data_access.teacher_repository import (
+    cid_if_exist,
+    sid_if_exist,
+    tid_if_exist,
+    update_attendance,
+    update_course_times,
+    mark_student_as_deleted,
+    get_courses_by_teacher_id,
+    update_attendance_records,
+    initialize_attendance_records,
+    get_student_count_by_course_id,
+)
 
 teacher = Blueprint("teacher", __name__, static_folder="static")
 # 本次签到的所有人员信息
 attend_records = []
 # 本次签到的开启时间
 the_now_time = ""
-
-
-async def get_courses_by_teacher_id(teacher_id: str) -> list[Course]:
-    """根据教师ID获取其所有课程。
-
-    参数:
-        teacher_id (int): 教师的ID。
-
-    返回:
-        List[Course]: 包含教师所有课程的列表。
-    """
-    # 使用模型查询来获取课程列表
-    courses = Course.query.filter_by(t_id=teacher_id).all()
-    return courses
-
-
-async def get_student_count_by_course_id(course_id: str) -> int:
-    """根据课程ID获取选修该课程的学生数量。
-
-    参数:
-        course_id (str): 课程的ID。
-
-    返回:
-        int: 选修该课程的学生数量。
-    """
-    # 使用模型查询来统计选修课程的学生数量
-    count = StudentCourse.query.filter_by(c_id=course_id).count()
-    return count
 
 
 @teacher.route("/home")
@@ -78,21 +62,6 @@ async def home() -> Any:
 @teacher.route("/reco_faces")
 def reco_faces():
     return render_template("teacher/index.html")
-
-
-def update_attend_records(sid: str) -> None:
-    """更新考勤记录"""
-    # 首先检查sid是否已经在attend_records中
-    sid_exists = False
-    for record in attend_records:
-        if str(sid) == record.split()[0]:
-            sid_exists = True
-            break  # 如果找到了sid, 就不需要进一步检查
-
-    # 如果sid不存在于任何记录中, 添加新的考勤记录
-    if not sid_exists:
-        attend_time = time.strftime("%Y-%m-%d %H:%M", time.localtime())
-        attend_records.append(f"{sid}  {attend_time}  已签到\n")
 
 
 def stream_video_frames(camera: VideoCamera, course_id: str, timeout_seconds=10):
@@ -127,26 +96,6 @@ def all_course():
     return render_template("teacher/course_attend.html", courses=teacher_all_course)
 
 
-# 开启签到
-def update_course_times(cid: str) -> Union[str, None]:
-    """更新课程的考勤次数"""
-    course = Course.query.filter_by(c_id=cid).first()
-    if course:
-        now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        course.times = f"{course.times}/{now}"
-        db.session.commit()
-        return now
-    return None
-
-
-def initialize_attendance_records(cid: str, now: str) -> None:
-    """初始化考勤记录, 标记所有学生为未签到"""
-    the_course_students = StudentCourse.query.filter_by(c_id=cid)
-    all_students_attend = [Attendance(s_id=sc.s_id, c_id=cid, time=now, result="缺勤") for sc in the_course_students]
-    db.session.add_all(all_students_attend)
-    db.session.commit()
-
-
 @teacher.route("/records", methods=["POST"])
 def records():
     cid = request.form.get("id")
@@ -169,23 +118,6 @@ def records():
 @teacher.route("/now_attend")
 def now_attend():
     return jsonify(attend_records)
-
-
-async def update_attendance_records(all_sid: list[str], cid: str, all_time: str) -> None:
-    """
-    更新考勤记录为"已签到"。
-
-    :param all_sid: 学生ID列表。
-    :param cid: 课程ID。
-    :param all_time: 考勤时间。
-    :return: None
-    """
-    Attendance.query.filter(
-        Attendance.time == all_time,
-        Attendance.c_id == cid,
-        Attendance.s_id.in_(all_sid),
-    ).update({"result": "已签到"})
-    db.session.commit()
 
 
 # 停止签到
@@ -368,27 +300,6 @@ def select_all_records():
     return render_template("teacher/show_records.html", dict=dict, courses=courses)
 
 
-async def update_attendance(course_id: str, student_id: str, class_time: str, result: str) -> Optional[Attendance]:
-    """
-    更新学生的出勤记录。
-
-    参数:
-        course_id (str): 课程ID。
-        student_id (str): 学生ID。
-        time (datetime): 上课时间。
-        result (str): 出勤结果。
-
-    返回:
-        Optional[Attendance]: 更新后的出勤记录对象, 如果找不到则返回None。
-    """
-    one_attend = Attendance.query.filter_by(c_id=course_id, s_id=student_id, time=class_time).first()
-    if one_attend:
-        one_attend.result = result
-        db.session.commit()
-        return one_attend
-    return None
-
-
 @teacher.route("/update_attend", methods=["POST"])
 async def update_attend():
     course_id = request.form.get("course_id")
@@ -548,14 +459,6 @@ def close_getFace():
     return redirect(url_for("teacher.select_sc"))
 
 
-def mark_student_as_deleted(sid):
-    """标记学生为已删除状态, 并提交数据库更改。"""
-    student = Student.query.filter(Student.s_id == sid).first()
-    if student:
-        student.flag = 1  # 假设flag=1表示学生已被删除
-        db.session.commit()
-
-
 def delete_all_images_in_folder(uid):
     folder_path = os.path.join(config.cache_path, "dataset", uid)
     if os.path.exists(folder_path):
@@ -576,24 +479,8 @@ def delete_face():
 
 
 def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {"xlsx", "xls"}
-    return "." in filename and filename.rsplit(".", 1)[1] in ALLOWED_EXTENSIONS
-
-
-# 检测学号存在
-def sid_if_exist(sid):
-    num = Student.query.filter(Student.s_id.in_(sid)).count()
-    return num
-
-
-def cid_if_exist(cid):
-    num = Course.query.filter(Course.c_id.in_(cid)).count()
-    return num
-
-
-def tid_if_exist(tid):
-    num = Teacher.query.filter(Teacher.t_id.in_(tid)).count()
-    return num
+    allowed_extensions = {"xlsx", "xls"}
+    return "." in filename and filename.rsplit(".", 1)[1] in allowed_extensions
 
 
 @teacher.route("upload_sc", methods=["POST"])
@@ -779,3 +666,16 @@ def download():
         as_attachment=True,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+def update_attend_records(sid: str) -> None:
+    """更新考勤记录"""
+    sid_exists = False
+    for record in attend_records:
+        if str(sid) == record.split()[0]:
+            sid_exists = True
+            break
+
+    if not sid_exists:
+        attend_time = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        attend_records.append(f"{sid}  {attend_time}  已签到\n")

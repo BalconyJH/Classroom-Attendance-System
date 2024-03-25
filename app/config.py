@@ -36,7 +36,7 @@ class Config(BaseSettings):
     sentry_environment: str = "production"
 
     class Config:
-        env_file = "../.env"
+        env_file = ".env"
         extra = "allow"
 
     @model_validator(mode="after")
