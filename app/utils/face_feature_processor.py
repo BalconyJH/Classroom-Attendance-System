@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import cv2
 import dlib
@@ -87,7 +88,12 @@ class FaceFeatureProcessor:
         logger.info(f"Processed and saved image: {path}")
         return "right"
 
-    def extract_face_features_128d(self, path_img: str):
+    def extract_face_features_128d(self, path_img: str) -> Optional[np.ndarray]:
+        """
+        提取图像中的人脸特征。
+        :param path_img: 图像路径。
+        :return: 人脸特征向量。
+        """
         image = cv2.imread(path_img)
         faces = self.face_detector(image, 1)
 
@@ -99,6 +105,12 @@ class FaceFeatureProcessor:
             return None
 
     def calculate_average_face_features(self, path: str) -> np.ndarray:
+        """
+        计算指定路径下所有图像的平均人脸特征。
+        :param path: 图像路径。
+        :return: 平均人脸特征向量。
+        """
+
         def process_image(_photo_path):
             features_128d = self.extract_face_features_128d(_photo_path)
             if features_128d is not None:
