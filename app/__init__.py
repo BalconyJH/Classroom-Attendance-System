@@ -9,6 +9,7 @@ from flask import Flask, flash, request, session, url_for, redirect, render_temp
 from app.utils import init
 from app.config import config
 from app.log import setup_logger
+from database import DataProcess
 from app.utils.session_manager import SessionManager
 from app.utils.model import StudentSession, TeacherSession
 
@@ -44,6 +45,7 @@ app.config.update(
 db = SQLAlchemy(app)
 
 # Import the views
+from app import views  # noqa
 
 # Import Flask models
 from app.database.models import Student, Teacher  # E402
@@ -53,6 +55,7 @@ setup_logger()
 
 # Initialize the migration
 migrate = Migrate(app, db)
+DataProcess()
 
 
 async def login_user(user_type: str, username: str, password: str, time: str) -> bool:
@@ -112,6 +115,7 @@ async def login_user_for_sess_manager(user_type: str, username: str, password: s
 
 @app.route("/", methods=["GET", "POST"])
 async def login():
+    app.logger.debug(app.url_map)
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
