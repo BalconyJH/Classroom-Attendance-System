@@ -105,6 +105,7 @@ class Camera:
 
 class VideoCamera:
     def __init__(self, video_stream: Union[int, str] = 0):
+        logger.debug(dlib.DLIB_USE_CUDA)
         # sklearn NearestNeighbors model initialization
         self.face_recognizer = NearestNeighbors(n_neighbors=1, algorithm="auto")
         self.match_threshold = 0.3
