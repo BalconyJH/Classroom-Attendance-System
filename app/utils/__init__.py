@@ -67,8 +67,8 @@ async def init_shape_predictor_model_file():
         logger.info(message_translator("MODEL.LOAD.SUCCESS") + "shape_predictor_model_file")
         _ = None
     except Exception as e:
-        logger.info(message_translator("MODEL.LOAD.SUCCESS") + "shape_predictor_model_file")
-        logger.info(e)
+        logger.warning(message_translator("MODEL.LOAD.FAILED") + "shape_predictor_model_file")
+        logger.exception(e)
         unzip_static(
             config.static_path / "shape_predictor_68_face_landmarks.dat.bz2",
             config.face_model_path / "shape_predictor_68_face_landmarks.dat",
@@ -87,8 +87,8 @@ async def init_face_recognition_model_file():
         logger.info(message_translator("MODEL.LOAD.SUCCESS") + "face_recognition_model_file")
         _ = None
     except Exception as e:
-        logger.info(message_translator("MODEL.LOAD.FAILED") + "face_recognition_model_file")
-        logger.info(e)
+        logger.error(message_translator("MODEL.LOAD.FAILED") + "face_recognition_model_file")
+        logger.exception(e)
         unzip_static(
             config.static_path / "dlib_face_recognition_resnet_model_v1.dat.bz2",
             config.face_model_path / "dlib_face_recognition_resnet_model_v1.dat",
